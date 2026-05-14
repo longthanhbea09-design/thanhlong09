@@ -18,8 +18,9 @@ interface OrderData {
   paymentProvider: string | null
   paidAt: string | null
   expiredAt: string | null
-  // deliveryContent is not returned here — phone verification required
-  // Customers must use /orders/lookup to retrieve delivery info securely
+  status: string
+  // deliveryContent NOT returned here — phone verification required at /orders/lookup
+  deliveryStatus: string
 }
 
 interface ShopSettings {
@@ -64,10 +65,14 @@ export default function CheckoutPage() {
       .catch(() => {})
   }, [fetchOrder])
 
-  // Poll mỗi 5 giây khi đang chờ thanh toán
+  // Poll every 5s while pending; slow-poll while paid+delivering (waiting for auto-delivery)
   useEffect(() => {
-    if (!order || order.paymentStatus === 'paid') return
-    const interval = setInterval(fetchOrder, 5000)
+    if (!order) return
+    const isDone =
+      order.paymentStatus === 'paid' &&
+      (order.deliveryStatus === 'delivered' || order.deliveryStatus === 'out_of_stock')
+    if (isDone) return
+    const interval = setInterval(fetchOrder, order.paymentStatus === 'paid' ? 2000 : 5000)
     return () => clearInterval(interval)
   }, [order, fetchOrder])
 
@@ -106,6 +111,10 @@ export default function CheckoutPage() {
   }
 
   if (order.paymentStatus === 'paid') {
+    const isDelivered = order.deliveryStatus === 'delivered'
+    const isOutOfStock = order.deliveryStatus === 'out_of_stock'
+    const isDelivering = !isDelivered && !isOutOfStock
+
     return (
       <div className="min-h-screen bg-[#050816] flex items-center justify-center px-4">
         <div className="max-w-md w-full glass rounded-3xl p-10 text-center border border-emerald-500/30 shadow-xl shadow-emerald-500/10">
@@ -115,10 +124,9 @@ export default function CheckoutPage() {
           <h1 className="text-3xl font-bold text-white mb-2">Thanh toán thành công!</h1>
           <p className="text-slate-400 mb-6">
             Đơn hàng <span className="text-cyan-400 font-bold">{order.orderCode}</span> đã được xác nhận.
-            ThanhLongShop sẽ liên hệ với bạn trong vài phút.
           </p>
 
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-5 mb-6 text-left space-y-2">
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-5 mb-5 text-left space-y-2">
             <Row label="Sản phẩm" value={order.productName} />
             <Row label="Gói" value={order.planName} />
             <Row label="Số tiền" value={formatPrice(order.amount)} highlight />
@@ -127,16 +135,40 @@ export default function CheckoutPage() {
             )}
           </div>
 
-          {/* Delivery info — requires phone verification via /orders/lookup */}
-          <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-4 mb-5 text-left">
-            <p className="text-blue-300 font-semibold text-sm mb-1">Xem thông tin bàn giao</p>
-            <p className="text-slate-400 text-xs">
-              Để bảo mật, thông tin bàn giao cần xác minh bằng số điện thoại.{' '}
-              <a href="/orders/lookup" className="text-cyan-400 hover:underline font-medium">
-                Tra cứu đơn hàng →
+          {/* Delivery status block */}
+          {isDelivered && (
+            <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-4 mb-5 text-left">
+              <p className="text-emerald-400 font-bold text-sm mb-1">🎉 Tài khoản đã được giao tự động!</p>
+              <p className="text-slate-400 text-xs mb-3">
+                Thông tin tài khoản đã được gửi vào email của bạn. Nhập mã đơn và số điện thoại để xem tại đây:
+              </p>
+              <a
+                href="/orders/lookup"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 font-semibold text-sm hover:bg-emerald-500/30 transition-all"
+              >
+                Xem thông tin tài khoản →
               </a>
-            </p>
-          </div>
+            </div>
+          )}
+
+          {isOutOfStock && (
+            <div className="bg-orange-500/10 border border-orange-500/20 rounded-2xl p-4 mb-5 text-left">
+              <p className="text-orange-300 font-bold text-sm mb-1">⚠️ Kho tạm hết hàng</p>
+              <p className="text-slate-400 text-xs">
+                Đơn đã thanh toán thành công. Shop đang bổ sung tài khoản và sẽ liên hệ giao sớm qua Zalo.
+              </p>
+            </div>
+          )}
+
+          {isDelivering && (
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-4 mb-5 text-left flex items-center gap-3">
+              <RefreshCw className="w-4 h-4 text-blue-400 animate-spin shrink-0" />
+              <div>
+                <p className="text-blue-300 font-semibold text-sm">Hệ thống đang giao tài khoản...</p>
+                <p className="text-slate-500 text-xs mt-0.5">Thường hoàn tất trong vài giây.</p>
+              </div>
+            </div>
+          )}
 
           <a
             href={settings?.zaloLink || `https://zalo.me/${settings?.zalo || ''}`}

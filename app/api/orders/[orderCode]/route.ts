@@ -25,7 +25,7 @@ export async function GET(
       return NextResponse.json({ error: 'Không tìm thấy đơn hàng' }, { status: 404 })
     }
 
-    // deliveryContent is intentionally omitted — phone not verified here
+    // deliveryContent intentionally omitted — phone verification required at /orders/lookup
     return NextResponse.json({
       orderCode: order.orderCode,
       customerName: order.customerName,
@@ -39,6 +39,7 @@ export async function GET(
       paidAt: order.paidAt,
       expiredAt: order.expiredAt,
       status: order.status,
+      deliveryStatus: order.deliveryStatus,
     })
   } catch (error) {
     console.error('GET /api/orders/[orderCode] error:', error)

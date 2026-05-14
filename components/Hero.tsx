@@ -16,7 +16,7 @@ export default function Hero() {
 
 
   return (
-    <section className="relative min-h-screen flex items-center pt-20 overflow-hidden">
+    <section id="home" className="relative min-h-screen flex items-center pt-20 overflow-hidden scroll-mt-20">
       {/* Background effects */}
       <div className="absolute inset-0 hero-glow" />
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl animate-pulse-slow" />

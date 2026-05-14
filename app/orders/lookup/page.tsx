@@ -13,6 +13,7 @@ interface LookupOrder {
   amount: number
   paymentStatus: string
   status: string
+  deliveryStatus: string
   createdAt: string
   paidAt: string | null
   completedAt: string | null
@@ -205,8 +206,19 @@ export default function OrderLookupPage() {
               )}
             </div>
 
-            {/* Delivery content */}
-            {result.paymentStatus === 'paid' && !result.deliveryContent && (
+            {/* Delivery status banners */}
+            {result.paymentStatus === 'paid' && !result.deliveryContent && result.deliveryStatus === 'out_of_stock' && (
+              <div className="bg-orange-500/10 border border-orange-500/20 rounded-2xl p-5 flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-orange-400 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-orange-300 font-semibold text-sm">Kho tạm hết hàng</p>
+                  <p className="text-slate-400 text-xs mt-1">
+                    Đơn đã thanh toán thành công. Shop đang bổ sung tài khoản và sẽ liên hệ giao sớm qua Zalo. Xin lỗi vì sự bất tiện này.
+                  </p>
+                </div>
+              </div>
+            )}
+            {result.paymentStatus === 'paid' && !result.deliveryContent && result.deliveryStatus !== 'out_of_stock' && (
               <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-5 flex items-start gap-3">
                 <Clock className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
                 <div>

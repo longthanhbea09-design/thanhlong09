@@ -47,6 +47,19 @@ export async function POST(
     const variant = await prisma.productPlan.create({
       data: { ...parsed.data, productId: params.id, isActive: true },
     })
+
+    // Auto-recompute priceFrom
+    const plans = await prisma.productPlan.findMany({
+      where: { productId: params.id, isActive: true },
+      select: { price: true, available: true },
+    })
+    const available = plans.filter(p => p.available).map(p => p.price)
+    const all = plans.map(p => p.price)
+    const priceFrom = available.length > 0 ? Math.min(...available) : all.length > 0 ? Math.min(...all) : 0
+    if (priceFrom > 0) {
+      await prisma.product.update({ where: { id: params.id }, data: { priceFrom } })
+    }
+
     return NextResponse.json(variant, { status: 201 })
   } catch (error) {
     console.error('POST variant error:', error)

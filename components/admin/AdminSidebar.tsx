@@ -10,6 +10,7 @@ import {
   LogOut,
   Zap,
   ChevronRight,
+  Archive,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -17,6 +18,7 @@ const navItems = [
   { href: '/admin/dashboard', icon: LayoutDashboard, label: 'Tổng quan' },
   { href: '/admin/orders', icon: ShoppingBag, label: 'Đơn hàng' },
   { href: '/admin/products', icon: Package, label: 'Sản phẩm' },
+  { href: '/admin/stock', icon: Archive, label: 'Kho tài khoản' },
   { href: '/admin/settings', icon: Settings, label: 'Cài đặt' },
 ]
 

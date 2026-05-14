@@ -18,39 +18,41 @@ model Admin {
 }
 
 model Product {
-  id          String        @id @default(cuid())
-  name        String
-  slug        String        @unique
-  category    String
-  description String
-  priceFrom   Int
-  badge       String?
-  icon        String        @default("📦")
-  imageUrl    String?
-  isActive    Boolean       @default(true)
-  isFeatured  Boolean       @default(false)
-  sortOrder   Int           @default(0)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  plans       ProductPlan[]
-  orders      Order[]
+  id            String          @id @default(cuid())
+  name          String
+  slug          String          @unique
+  category      String
+  description   String
+  priceFrom     Int
+  badge         String?
+  icon          String          @default("📦")
+  imageUrl      String?
+  isActive      Boolean         @default(true)
+  isFeatured    Boolean         @default(false)
+  sortOrder     Int             @default(0)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  plans         ProductPlan[]
+  orders        Order[]
+  accountStocks AccountStock[]
 }
 
 model ProductPlan {
-  id          String   @id @default(cuid())
-  productId   String
-  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  name         String
-  duration     String
-  type         String   @default("")
-  price        Int
-  warrantyText String   @default("KBH")
-  description  String?
-  badge        String?
-  available    Boolean  @default(true)
-  isActive     Boolean  @default(true)
-  sortOrder    Int      @default(0)
-  orders      Order[]
+  id            String         @id @default(cuid())
+  productId     String
+  product       Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name          String
+  duration      String
+  type          String         @default("")
+  price         Int
+  warrantyText  String         @default("KBH")
+  description   String?
+  badge         String?
+  available     Boolean        @default(true)
+  isActive      Boolean        @default(true)
+  sortOrder     Int            @default(0)
+  orders        Order[]
+  accountStocks AccountStock[]
 }
 
 model Order {
@@ -78,6 +80,7 @@ model Order {
   transactionId   String?
   paidAt           DateTime?
   expiredAt        DateTime?
+  deliveryStatus   String               @default("waiting_payment")
   deliveryContent  String?
   deliveryVisible  Boolean              @default(false)
   deliveredAt      DateTime?
@@ -87,6 +90,7 @@ model Order {
   createdAt        DateTime             @default(now())
   updatedAt        DateTime             @updatedAt
   transactions     PaymentTransaction[]
+  accountStock     AccountStock?
 }
 
 model PaymentTransaction {
@@ -113,6 +117,24 @@ model AdminPasskey {
   deviceName   String    @default("Thiết bị không rõ")
   createdAt    DateTime  @default(now())
   lastUsedAt   DateTime?
+}
+
+model AccountStock {
+  id        String      @id @default(cuid())
+  productId String
+  product   Product     @relation(fields: [productId], references: [id])
+  planId    String
+  plan      ProductPlan @relation(fields: [planId], references: [id])
+  username  String
+  password  String
+  extraInfo String      @default("")
+  // available | sold | disabled
+  status    String      @default("available")
+  orderId   String?     @unique
+  order     Order?      @relation(fields: [orderId], references: [id])
+  soldAt    DateTime?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
 }
 
 model Setting {

@@ -31,6 +31,21 @@ export interface Product {
   plans: ProductPlan[]
 }
 
+export interface AccountStock {
+  id: string
+  productId: string
+  planId: string
+  username: string
+  password: string
+  extraInfo: string
+  // 'available' | 'sold' | 'disabled'
+  status: string
+  orderId: string | null
+  soldAt: Date | null
+  createdAt: Date
+  updatedAt: Date
+}
+
 export interface Order {
   id: string
   orderCode: string
@@ -46,14 +61,19 @@ export interface Order {
   amount: number
   paymentStatus: string
   paidAt: Date | null
+  // 'waiting_payment' | 'delivered' | 'out_of_stock'
+  deliveryStatus: string
   deliveryContent: string | null
   deliveryVisible: boolean
   deliveredAt: Date | null
   completedAt: Date | null
+  emailStatus: string | null
+  emailSentAt: Date | null
   createdAt: Date
   updatedAt: Date
   product: Product
   plan: ProductPlan
+  accountStock?: AccountStock | null
 }
 
 export interface Setting {

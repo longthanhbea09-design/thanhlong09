@@ -17,7 +17,7 @@ const notCovered = [
 
 export default function WarrantySection() {
   return (
-    <section id="warranty" className="py-20 relative">
+    <section id="warranty" className="py-20 relative scroll-mt-20">
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-purple-950/10 to-transparent" />
       <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         <FadeIn className="text-center mb-12">

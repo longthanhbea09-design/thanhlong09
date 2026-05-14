@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { autoDelivery } from '@/lib/autoDelivery'
 
 interface ProcessPaymentParams {
   orderCode: string
@@ -21,6 +22,16 @@ export async function processPaymentWebhook({
 
   if (!order) return { ok: false, message: 'Order not found' }
   if (order.paymentStatus === 'paid') return { ok: true, message: 'Already paid' }
+
+  // Reject payment if order has expired
+  if (order.expiredAt && new Date() > order.expiredAt) {
+    await prisma.order.update({
+      where: { id: order.id },
+      data: { paymentStatus: 'expired' },
+    })
+    console.warn(`[webhook] Rejected late payment for expired order ${orderCode}`)
+    return { ok: false, message: 'Order expired' }
+  }
 
   // Chống trùng giao dịch
   if (transactionId) {
@@ -69,6 +80,9 @@ export async function processPaymentWebhook({
       },
     }),
   ])
+
+  // Auto-deliver account from stock (idempotent — safe if webhook fires twice)
+  await autoDelivery(order.id)
 
   return { ok: true, message: 'Payment confirmed' }
 }

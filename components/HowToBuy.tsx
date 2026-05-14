@@ -34,7 +34,7 @@ const steps = [
 
 export default function HowToBuy() {
   return (
-    <section id="how-to-buy" className="py-20 relative">
+    <section id="how-to-buy" className="py-20 relative scroll-mt-20">
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-emerald-950/10 to-transparent" />
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <FadeIn className="text-center mb-14">

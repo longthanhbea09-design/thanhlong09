@@ -110,6 +110,8 @@ export async function POST(request: NextRequest) {
         completedAt: order.completedAt,
         // deliveryContent only when all 5 conditions are met; null otherwise
         deliveryContent: showDelivery ? order.deliveryContent : null,
+        // deliveryStatus lets customer know if auto-delivery succeeded, failed, or is pending
+        deliveryStatus: order.deliveryStatus,
         // Do NOT return deliveryVisible — prevents customers from knowing content is
         // pending/hidden which could be used for social engineering ("admin said it's ready")
       },
