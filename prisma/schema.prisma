@@ -1,0 +1,104 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Admin {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  role         String   @default("admin")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Product {
+  id          String        @id @default(cuid())
+  name        String
+  slug        String        @unique
+  category    String
+  description String
+  priceFrom   Int
+  badge       String?
+  icon        String        @default("📦")
+  isActive    Boolean       @default(true)
+  isFeatured  Boolean       @default(false)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  plans       ProductPlan[]
+  orders      Order[]
+}
+
+model ProductPlan {
+  id          String   @id @default(cuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name        String
+  duration    String
+  price       Int
+  description String?
+  isActive    Boolean  @default(true)
+  orders      Order[]
+}
+
+model Order {
+  id              String               @id @default(cuid())
+  orderCode       String               @unique
+  customerName    String
+  phone           String
+  email           String?
+  contactMethod   String               @default("zalo")
+  productId       String
+  product         Product              @relation(fields: [productId], references: [id])
+  planId          String
+  plan            ProductPlan          @relation(fields: [planId], references: [id])
+  note            String?
+  status          String               @default("new")
+  internalNote    String?
+  amount          Int                  @default(0)
+  paymentStatus   String               @default("pending")
+  paymentProvider String?
+  paymentLinkId   String?
+  paymentUrl      String?
+  qrCode          String?
+  paymentRef      String?
+  paidAmount      Int?
+  transactionId   String?
+  paidAt          DateTime?
+  expiredAt       DateTime?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  transactions    PaymentTransaction[]
+}
+
+model PaymentTransaction {
+  id            String   @id @default(cuid())
+  orderId       String
+  order         Order    @relation(fields: [orderId], references: [id])
+  provider      String
+  transactionId String?
+  amount        Int
+  description   String?
+  rawPayload    String
+  status        String
+  createdAt     DateTime @default(now())
+}
+
+model Setting {
+  id           String   @id @default("singleton")
+  shopName     String   @default("ThanhLongShop")
+  zalo         String   @default("0924555517")
+  facebook     String   @default("Thành Long")
+  telegram     String   @default("@thanhlongshop")
+  supportEmail String   @default("support@thanhlongshop.net")
+  bankName     String   @default("Vietcombank")
+  bankAccount  String   @default("1234567890")
+  bankOwner    String   @default("NGUYEN THANH LONG")
+  qrCodeUrl    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
