@@ -3,12 +3,12 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "mongodb"
   url      = env("DATABASE_URL")
 }
 
 model Admin {
-  id           String         @id @default(cuid())
+  id           String         @id @default(auto()) @map("_id") @db.ObjectId
   email        String         @unique
   passwordHash String
   role         String         @default("admin")
@@ -18,29 +18,28 @@ model Admin {
 }
 
 model Product {
-  id            String          @id @default(cuid())
+  id            String         @id @default(auto()) @map("_id") @db.ObjectId
   name          String
-  slug          String          @unique
+  slug          String         @unique
   category      String
   description   String
   priceFrom     Int
   badge         String?
-  icon          String          @default("📦")
+  icon          String         @default("📦")
   imageUrl      String?
-  isActive      Boolean         @default(true)
-  isFeatured    Boolean         @default(false)
-  sortOrder     Int             @default(0)
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-  plans         ProductPlan[]
-  orders        Order[]
+  isActive      Boolean        @default(true)
+  isFeatured    Boolean        @default(false)
+  sortOrder     Int            @default(0)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
   accountStocks AccountStock[]
+  orders        Order[]
+  plans         ProductPlan[]
 }
 
 model ProductPlan {
-  id            String         @id @default(cuid())
-  productId     String
-  product       Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  id            String         @id @default(auto()) @map("_id") @db.ObjectId
+  productId     String         @db.ObjectId
   name          String
   duration      String
   type          String         @default("")
@@ -51,21 +50,20 @@ model ProductPlan {
   available     Boolean        @default(true)
   isActive      Boolean        @default(true)
   sortOrder     Int            @default(0)
-  orders        Order[]
   accountStocks AccountStock[]
+  orders        Order[]
+  product       Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
 model Order {
-  id              String               @id @default(cuid())
+  id              String               @id @default(auto()) @map("_id") @db.ObjectId
   orderCode       String               @unique
   customerName    String
   phone           String
   email           String?
   contactMethod   String               @default("zalo")
-  productId       String
-  product         Product              @relation(fields: [productId], references: [id])
-  planId          String
-  plan            ProductPlan          @relation(fields: [planId], references: [id])
+  productId       String               @db.ObjectId
+  planId          String               @db.ObjectId
   note            String?
   status          String               @default("new")
   internalNote    String?
@@ -78,25 +76,26 @@ model Order {
   paymentRef      String?
   paidAmount      Int?
   transactionId   String?
-  paidAt           DateTime?
-  expiredAt        DateTime?
-  deliveryStatus   String               @default("waiting_payment")
-  deliveryContent  String?
-  deliveryVisible  Boolean              @default(false)
-  deliveredAt      DateTime?
-  completedAt      DateTime?
-  emailStatus      String?
-  emailSentAt      DateTime?
-  createdAt        DateTime             @default(now())
-  updatedAt        DateTime             @updatedAt
-  transactions     PaymentTransaction[]
-  accountStock     AccountStock?
+  paidAt          DateTime?
+  expiredAt       DateTime?
+  deliveryStatus  String               @default("waiting_payment")
+  deliveryContent String?
+  deliveryVisible Boolean              @default(false)
+  deliveredAt     DateTime?
+  completedAt     DateTime?
+  emailStatus     String?
+  emailSentAt     DateTime?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  accountStock    AccountStock?
+  plan            ProductPlan          @relation(fields: [planId], references: [id])
+  product         Product              @relation(fields: [productId], references: [id])
+  transactions    PaymentTransaction[]
 }
 
 model PaymentTransaction {
-  id            String   @id @default(cuid())
-  orderId       String
-  order         Order    @relation(fields: [orderId], references: [id])
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  orderId       String   @db.ObjectId
   provider      String
   transactionId String?
   amount        Int
@@ -104,12 +103,12 @@ model PaymentTransaction {
   rawPayload    String
   status        String
   createdAt     DateTime @default(now())
+  order         Order    @relation(fields: [orderId], references: [id])
 }
 
 model AdminPasskey {
-  id           String    @id @default(cuid())
-  adminId      String
-  admin        Admin     @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  id           String    @id @default(auto()) @map("_id") @db.ObjectId
+  adminId      String    @db.ObjectId
   credentialId String    @unique
   publicKey    Bytes
   counter      BigInt    @default(0)
@@ -117,28 +116,30 @@ model AdminPasskey {
   deviceName   String    @default("Thiết bị không rõ")
   createdAt    DateTime  @default(now())
   lastUsedAt   DateTime?
+  admin        Admin     @relation(fields: [adminId], references: [id], onDelete: Cascade)
 }
 
 model AccountStock {
-  id        String      @id @default(cuid())
-  productId String
-  product   Product     @relation(fields: [productId], references: [id])
-  planId    String
-  plan      ProductPlan @relation(fields: [planId], references: [id])
+  id        String      @id @default(auto()) @map("_id") @db.ObjectId
+  productId String      @db.ObjectId
+  planId    String      @db.ObjectId
   username  String
   password  String
   extraInfo String      @default("")
-  // available | sold | disabled
   status    String      @default("available")
-  orderId   String?     @unique
-  order     Order?      @relation(fields: [orderId], references: [id])
+  orderId   String?     @unique @db.ObjectId
   soldAt    DateTime?
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
+  order     Order?      @relation(fields: [orderId], references: [id])
+  plan      ProductPlan @relation(fields: [planId], references: [id])
+  product   Product     @relation(fields: [productId], references: [id])
 }
 
+// Setting dùng id string cố định "singleton" — không cần @db.ObjectId
+// vì MongoDB cho phép _id là string bất kỳ, và Setting không có relation
 model Setting {
-  id                 String   @id @default("singleton")
+  id                 String   @id @map("_id") @default("singleton")
   shopName           String   @default("ThanhLongShop")
   zalo               String   @default("0924555517")
   zaloLink           String?
@@ -149,14 +150,14 @@ model Setting {
   hotline            String?
   supportEmail       String   @default("support@thanhlongshop.net")
   bankName           String   @default("Vietcombank")
-  bankBin            String?
   bankAccount        String   @default("1234567890")
   bankOwner          String   @default("NGUYEN THANH LONG")
   qrCodeUrl          String?
   maintenanceMode    Boolean  @default(false)
   maintenanceTitle   String?
   maintenanceMessage String?
-  deliveryTemplate   String?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
+  bankBin            String?
+  deliveryTemplate   String?
 }

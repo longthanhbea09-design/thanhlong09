@@ -59,7 +59,7 @@ async function main() {
   })
   console.log(`✅ Admin: ${adminEmail}`)
 
-  // Settings
+  // Settings — id mặc định là "singleton" (MongoDB cho phép string _id)
   await prisma.setting.upsert({
     where: { id: 'singleton' },
     update: {},
@@ -171,13 +171,16 @@ async function main() {
       create: { ...productData },
     })
 
-    // Only seed default variants if product has NO existing variants
+    // Chỉ seed variant mặc định nếu sản phẩm chưa có variant nào
     const existingCount = await prisma.productPlan.count({ where: { productId: created.id } })
     if (existingCount === 0) {
       const variants = buildVariants(productData.priceFrom, yearPrice)
-      await prisma.productPlan.createMany({
-        data: variants.map((v) => ({ ...v, productId: created.id, isActive: true })),
-      })
+      // Dùng vòng lặp create thay vì createMany để tương thích tốt nhất với MongoDB
+      for (const v of variants) {
+        await prisma.productPlan.create({
+          data: { ...v, productId: created.id, isActive: true },
+        })
+      }
       console.log(`✅ ${productData.name} (${variants.length} options mới)`)
     } else {
       console.log(`✅ ${productData.name} (giữ nguyên ${existingCount} options hiện có)`)

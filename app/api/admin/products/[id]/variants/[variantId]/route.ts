@@ -25,8 +25,16 @@ export async function PATCH(
       )
     }
 
-    const variant = await prisma.productPlan.update({
+    // MongoDB requires where to be a single unique field — verify ownership separately
+    const existing = await prisma.productPlan.findFirst({
       where: { id: params.variantId, productId: params.id },
+    })
+    if (!existing) {
+      return NextResponse.json({ error: 'Không tìm thấy option' }, { status: 404 })
+    }
+
+    const variant = await prisma.productPlan.update({
+      where: { id: params.variantId },
       data: parsed.data,
     })
     return NextResponse.json(variant)
