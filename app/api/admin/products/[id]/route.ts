@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { productSchema } from '@/lib/validators'
+import { securityLog } from '@/lib/securityLog'
+import { getClientIp } from '@/lib/rateLimit'
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -19,6 +21,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       data: parsed.data,
       include: { plans: true },
     })
+    securityLog('PRODUCT_UPDATED', { ip: getClientIp(request), productId: params.id })
     return NextResponse.json(product)
   } catch (error) {
     console.error('PATCH /api/admin/products/[id] error:', error)
@@ -38,6 +41,7 @@ export async function DELETE(_request: NextRequest, { params }: { params: { id: 
     }
 
     await prisma.product.delete({ where: { id: params.id } })
+    securityLog('PRODUCT_DELETED', { ip: getClientIp(_request), productId: params.id })
     return NextResponse.json({ success: true, message: 'Đã xóa sản phẩm' })
   } catch (error) {
     console.error('DELETE /api/admin/products/[id] error:', error)

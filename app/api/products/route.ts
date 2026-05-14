@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
   try {
     const products = await prisma.product.findMany({
@@ -8,7 +10,7 @@ export async function GET() {
       include: {
         plans: {
           where: { isActive: true },
-          orderBy: { price: 'asc' },
+          orderBy: { sortOrder: 'asc' },
         },
       },
       orderBy: [{ isFeatured: 'desc' }, { createdAt: 'asc' }],

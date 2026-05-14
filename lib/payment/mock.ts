@@ -4,8 +4,7 @@ export class MockPaymentProvider implements PaymentProvider {
   name = 'MOCK'
 
   async createPaymentLink(params: CreatePaymentParams): Promise<PaymentLinkResult> {
-    const bankInfo = `MB|0924555517|NGUYEN THANH LONG|${params.orderCode}`
-    const qrContent = `00020101021238560010A000000727012700069704220113${bankInfo}5303704540${params.amount}5802VN62${params.orderCode.length.toString().padStart(2, '0')}${params.orderCode}6304`
+    // Mock: generate a simple QR with order info (bank info shown from admin settings in UI)
     const qrCode = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(params.orderCode + ' - ' + params.amount)}`
 
     return {

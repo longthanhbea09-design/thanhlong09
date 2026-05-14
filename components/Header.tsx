@@ -12,6 +12,7 @@ const navLinks = [
   { href: '#pricing', label: 'Bảng giá' },
   { href: '#warranty', label: 'Bảo hành' },
   { href: '#contact', label: 'Liên hệ' },
+  { href: '/orders/lookup', label: 'Tra cứu đơn', isPage: true },
 ]
 
 export default function Header() {
@@ -24,20 +25,24 @@ export default function Header() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  const handleNavClick = (href: string) => {
+  const handleNavClick = (href: string, isPage?: boolean) => {
     setIsOpen(false)
-    if (href.startsWith('#')) {
+    if (isPage) {
+      window.location.href = href
+    } else if (href.startsWith('#')) {
       const el = document.querySelector(href)
       el?.scrollIntoView({ behavior: 'smooth' })
+    } else if (href === '/') {
+      window.location.href = '/'
     }
   }
 
   return (
     <header
       className={cn(
-        'fixed top-0 left-0 right-0 z-50 transition-all duration-300',
+        'fixed top-0 left-0 right-0 z-50 transition-all duration-300 transform-gpu will-change-transform',
         scrolled
-          ? 'bg-[#050816]/90 backdrop-blur-xl border-b border-white/10 shadow-xl'
+          ? 'bg-[#050816]/90 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.4)]'
           : 'bg-transparent'
       )}
     >
@@ -59,8 +64,8 @@ export default function Header() {
             {navLinks.map((link) => (
               <button
                 key={link.href}
-                onClick={() => handleNavClick(link.href)}
-                className="px-3 py-2 text-sm text-slate-300 hover:text-white hover:bg-white/10 rounded-lg transition-all duration-150"
+                onClick={() => handleNavClick(link.href, link.isPage)}
+                className={`px-3 py-2 text-sm rounded-lg transition-all duration-150 ${'isPage' in link && link.isPage ? 'text-cyan-400 hover:text-white hover:bg-cyan-500/10' : 'text-slate-300 hover:text-white hover:bg-white/10'}`}
               >
                 {link.label}
               </button>
@@ -93,13 +98,13 @@ export default function Header() {
 
       {/* Mobile menu */}
       {isOpen && (
-        <div className="lg:hidden bg-[#050816]/98 backdrop-blur-xl border-t border-white/10">
+        <div className="lg:hidden bg-[#050816]/98 backdrop-blur-xl">
           <div className="px-4 py-4 space-y-1">
             {navLinks.map((link) => (
               <button
                 key={link.href}
-                onClick={() => handleNavClick(link.href)}
-                className="block w-full text-left px-4 py-3 text-slate-300 hover:text-white hover:bg-white/10 rounded-xl transition-all text-base"
+                onClick={() => handleNavClick(link.href, link.isPage)}
+                className={`block w-full text-left px-4 py-3 rounded-xl transition-all text-base ${'isPage' in link && link.isPage ? 'text-cyan-400 hover:text-white hover:bg-cyan-500/10' : 'text-slate-300 hover:text-white hover:bg-white/10'}`}
               >
                 {link.label}
               </button>

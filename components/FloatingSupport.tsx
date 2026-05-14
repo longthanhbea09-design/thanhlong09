@@ -2,19 +2,25 @@
 
 import { useState } from 'react'
 import { MessageCircle, X, Phone, Facebook } from 'lucide-react'
+import type { Setting } from '@/types'
 
 interface FloatingSupportProps {
+  settings?: Setting | null
   zalo?: string
 }
 
-export default function FloatingSupport({ zalo = '0924555517' }: FloatingSupportProps) {
+export default function FloatingSupport({ settings, zalo: zaloProp }: FloatingSupportProps) {
   const [isOpen, setIsOpen] = useState(false)
+
+  const zalo = settings?.zalo || zaloProp || '0924555517'
+  const zaloLink = settings?.zaloLink || `https://zalo.me/${zalo}`
+  const facebookLink = settings?.facebookLink || 'https://facebook.com'
 
   const contacts = [
     {
       icon: MessageCircle,
       label: 'Zalo',
-      href: `https://zalo.me/${zalo}`,
+      href: zaloLink,
       color: 'bg-blue-500 hover:bg-blue-400',
     },
     {
@@ -26,14 +32,13 @@ export default function FloatingSupport({ zalo = '0924555517' }: FloatingSupport
     {
       icon: Facebook,
       label: 'Facebook',
-      href: 'https://facebook.com',
+      href: facebookLink,
       color: 'bg-indigo-500 hover:bg-indigo-400',
     },
   ]
 
   return (
     <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
-      {/* Contact options */}
       {isOpen && (
         <div className="flex flex-col gap-2 items-end animate-slide-up">
           {contacts.map((contact) => (
@@ -54,7 +59,6 @@ export default function FloatingSupport({ zalo = '0924555517' }: FloatingSupport
         </div>
       )}
 
-      {/* Toggle button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={`w-14 h-14 rounded-full shadow-2xl transition-all duration-200 flex items-center justify-center active:scale-95 ${

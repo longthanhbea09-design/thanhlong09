@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import AdminHeader from '@/components/admin/AdminHeader'
 import StatusBadge from '@/components/admin/StatusBadge'
+import RevenueChart from '@/components/admin/RevenueChart'
 import { formatPrice, formatDate } from '@/lib/utils'
 import { ShoppingBag, Package, TrendingUp, Clock, CheckCircle2, AlertCircle } from 'lucide-react'
 
@@ -136,6 +137,9 @@ export default function DashboardPage() {
           </div>
         ) : (
           <div className="max-w-6xl mx-auto space-y-6">
+            {/* Revenue chart */}
+            <RevenueChart />
+
             {/* Stat cards */}
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {statCards.map((card, i) => (

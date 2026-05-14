@@ -3,6 +3,47 @@ import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
 
+function buildVariants(priceFrom: number, yearPrice: number) {
+  return [
+    {
+      name: '1 tháng KBH',
+      duration: '1 tháng',
+      type: 'kbh',
+      price: priceFrom,
+      description: 'Không bảo hành',
+      available: true,
+      sortOrder: 0,
+    },
+    {
+      name: '1 tháng dùng chung',
+      duration: '1 tháng',
+      type: 'bhf-shared',
+      price: priceFrom + 20000,
+      description: 'Bảo hành Full, tài khoản dùng chung',
+      available: true,
+      sortOrder: 1,
+    },
+    {
+      name: '1 tháng chính chủ',
+      duration: '1 tháng',
+      type: 'bhf-own',
+      price: priceFrom + 50000,
+      description: 'Bảo hành Full, tài khoản riêng',
+      available: true,
+      sortOrder: 2,
+    },
+    {
+      name: '1 năm',
+      duration: '1 năm',
+      type: 'yearly',
+      price: yearPrice,
+      description: 'Tiết kiệm nhất, bảo hành cả năm',
+      available: false,
+      sortOrder: 3,
+    },
+  ]
+}
+
 async function main() {
   console.log('🌱 Bắt đầu seed dữ liệu...')
 
@@ -14,13 +55,9 @@ async function main() {
   await prisma.admin.upsert({
     where: { email: adminEmail },
     update: { passwordHash },
-    create: {
-      email: adminEmail,
-      passwordHash,
-      role: 'admin',
-    },
+    create: { email: adminEmail, passwordHash, role: 'admin' },
   })
-  console.log(`✅ Admin tạo xong: ${adminEmail}`)
+  console.log(`✅ Admin: ${adminEmail}`)
 
   // Settings
   await prisma.setting.upsert({
@@ -38,9 +75,9 @@ async function main() {
       bankOwner: 'NGUYEN THANH LONG',
     },
   })
-  console.log('✅ Settings tạo xong')
+  console.log('✅ Settings')
 
-  // Xóa sản phẩm không còn bán nữa
+  // Xóa sản phẩm không còn bán
   const slugsToRemove = ['canva-pro', 'youtube-premium', 'netflix', 'grammarly-premium', 'duolingo-super']
   for (const slug of slugsToRemove) {
     const product = await prisma.product.findUnique({ where: { slug } })
@@ -48,11 +85,11 @@ async function main() {
       const hasOrders = await prisma.order.findFirst({ where: { productId: product.id } })
       if (hasOrders) {
         await prisma.product.update({ where: { slug }, data: { isActive: false } })
-        console.log(`⏸️ Ẩn sản phẩm (có đơn hàng): ${slug}`)
+        console.log(`⏸️ Ẩn: ${slug}`)
       } else {
         await prisma.productPlan.deleteMany({ where: { productId: product.id } })
         await prisma.product.delete({ where: { slug } })
-        console.log(`🗑️ Xóa sản phẩm: ${slug}`)
+        console.log(`🗑️ Xóa: ${slug}`)
       }
     }
   }
@@ -68,10 +105,7 @@ async function main() {
       badge: 'Bán chạy',
       icon: '🤖',
       isFeatured: true,
-      plans: [
-        { name: '1 tháng', duration: '1 tháng', price: 99000, description: 'Phù hợp dùng thử' },
-        { name: '1 năm', duration: '1 năm', price: 990000, description: 'Tiết kiệm nhất' },
-      ],
+      yearPrice: 990000,
     },
     {
       name: 'CapCut Pro',
@@ -82,10 +116,7 @@ async function main() {
       badge: 'Giá tốt',
       icon: '🎬',
       isFeatured: true,
-      plans: [
-        { name: '1 tháng', duration: '1 tháng', price: 79000, description: 'Phù hợp dùng thử' },
-        { name: '1 năm', duration: '1 năm', price: 750000, description: 'Tiết kiệm nhất' },
-      ],
+      yearPrice: 750000,
     },
     {
       name: 'SuperGrok',
@@ -96,10 +127,7 @@ async function main() {
       badge: 'Mới nhất',
       icon: '⚡',
       isFeatured: true,
-      plans: [
-        { name: '1 tháng', duration: '1 tháng', price: 129000, description: 'Phù hợp dùng thử' },
-        { name: '1 năm', duration: '1 năm', price: 1290000, description: 'Tiết kiệm nhất' },
-      ],
+      yearPrice: 1290000,
     },
     {
       name: 'Gemini Pro',
@@ -110,10 +138,7 @@ async function main() {
       badge: 'Phổ biến',
       icon: '✨',
       isFeatured: true,
-      plans: [
-        { name: '1 tháng', duration: '1 tháng', price: 89000, description: 'Phù hợp dùng thử' },
-        { name: '1 năm', duration: '1 năm', price: 890000, description: 'Tiết kiệm nhất' },
-      ],
+      yearPrice: 890000,
     },
     {
       name: 'Flow 3',
@@ -124,10 +149,7 @@ async function main() {
       badge: 'AI Video',
       icon: '🎥',
       isFeatured: true,
-      plans: [
-        { name: '1 tháng', duration: '1 tháng', price: 119000, description: 'Phù hợp dùng thử' },
-        { name: '1 năm', duration: '1 năm', price: 1190000, description: 'Tiết kiệm nhất' },
-      ],
+      yearPrice: 1190000,
     },
     {
       name: 'Microsoft 365',
@@ -138,38 +160,32 @@ async function main() {
       badge: 'Văn phòng',
       icon: '💼',
       isFeatured: true,
-      plans: [
-        { name: '1 tháng', duration: '1 tháng', price: 99000, description: 'Phù hợp dùng thử' },
-        { name: '1 năm', duration: '1 năm', price: 990000, description: 'Tiết kiệm nhất' },
-      ],
+      yearPrice: 990000,
     },
   ]
 
-  for (const productData of products) {
-    const { plans, ...product } = productData
+  for (const { yearPrice, ...productData } of products) {
     const created = await prisma.product.upsert({
-      where: { slug: product.slug },
-      update: { ...product },
-      create: { ...product },
+      where: { slug: productData.slug },
+      update: { ...productData },
+      create: { ...productData },
     })
 
-    for (const plan of plans) {
-      const existing = await prisma.productPlan.findFirst({
-        where: { productId: created.id, duration: plan.duration },
+    // Only seed default variants if product has NO existing variants
+    const existingCount = await prisma.productPlan.count({ where: { productId: created.id } })
+    if (existingCount === 0) {
+      const variants = buildVariants(productData.priceFrom, yearPrice)
+      await prisma.productPlan.createMany({
+        data: variants.map((v) => ({ ...v, productId: created.id, isActive: true })),
       })
-      if (!existing) {
-        await prisma.productPlan.create({
-          data: { ...plan, productId: created.id },
-        })
-      }
+      console.log(`✅ ${productData.name} (${variants.length} options mới)`)
+    } else {
+      console.log(`✅ ${productData.name} (giữ nguyên ${existingCount} options hiện có)`)
     }
-    console.log(`✅ Sản phẩm: ${product.name}`)
   }
 
   console.log('\n🎉 Seed hoàn tất!')
-  console.log(`📧 Admin email: ${adminEmail}`)
-  console.log(`🔑 Admin password: ${adminPassword}`)
-  console.log('🌐 Truy cập admin tại: http://localhost:3000/admin/login')
+  console.log(`📧 Admin: ${adminEmail} / ${adminPassword}`)
 }
 
 main()

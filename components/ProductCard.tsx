@@ -11,8 +11,9 @@ interface ProductCardProps {
 }
 
 export default function ProductCard({ product, onBuyNow }: ProductCardProps) {
-  const minPrice = product.plans.length > 0
-    ? Math.min(...product.plans.map((p) => p.price))
+  const availablePlans = product.plans.filter((p) => p.available && p.isActive)
+  const minPrice = availablePlans.length > 0
+    ? Math.min(...availablePlans.map((p) => p.price))
     : product.priceFrom
 
   return (
@@ -20,7 +21,14 @@ export default function ProductCard({ product, onBuyNow }: ProductCardProps) {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
-          <ProductLogo slug={product.slug} size={48} />
+          {product.imageUrl ? (
+            <div className="w-12 h-12 rounded-xl overflow-hidden bg-white/10 shrink-0 flex items-center justify-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={product.imageUrl} alt={product.name} className="w-full h-full object-contain" />
+            </div>
+          ) : (
+            <ProductLogo slug={product.slug} size={48} />
+          )}
           <div>
             <h3 className="text-white font-bold text-lg leading-tight">{product.name}</h3>
             <span className="text-xs text-slate-400 font-medium">{product.category}</span>
@@ -36,18 +44,11 @@ export default function ProductCard({ product, onBuyNow }: ProductCardProps) {
       {/* Description */}
       <p className="text-slate-400 text-sm leading-relaxed flex-1">{product.description}</p>
 
-      {/* Plans */}
-      {product.plans.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {product.plans.map((plan) => (
-            <span
-              key={plan.id}
-              className="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-slate-300 text-xs"
-            >
-              {plan.duration}
-            </span>
-          ))}
-        </div>
+      {/* Plans summary */}
+      {availablePlans.length > 0 && (
+        <p className="text-slate-500 text-xs">
+          {availablePlans.length} gói · Bấm mua để chọn gói
+        </p>
       )}
 
       {/* Price */}

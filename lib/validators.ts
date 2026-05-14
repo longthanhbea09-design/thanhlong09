@@ -22,7 +22,10 @@ export const adminLoginSchema = z.object({
 
 export const updateOrderSchema = z.object({
   status: z.enum(['new', 'contacting', 'paid', 'processing', 'completed', 'cancelled']).optional(),
-  internalNote: z.string().max(1000).optional(),
+  internalNote: z.string().max(2000).optional().nullable(),
+  deliveryContent: z.string().max(5000).optional().nullable(),
+  deliveryVisible: z.boolean().optional(),
+  completedAt: z.string().optional().nullable(),
 })
 
 export const productSchema = z.object({
@@ -30,26 +33,52 @@ export const productSchema = z.object({
   slug: z.string().min(1, 'Slug không được trống').regex(/^[a-z0-9-]+$/, 'Slug chỉ gồm chữ thường, số và dấu gạch ngang'),
   category: z.enum(['AI', 'Thiết kế', 'Giải trí', 'Học tập', 'Văn phòng']),
   description: z.string().min(10, 'Mô tả ít nhất 10 ký tự'),
-  priceFrom: z.number().min(1000, 'Giá tối thiểu 1.000đ'),
-  badge: z.string().optional(),
+  priceFrom: z.number().min(0, 'Giá không hợp lệ'),
+  badge: z.string().optional().nullable(),
   icon: z.string().default('📦'),
+  imageUrl: z.string().nullable().optional(),
   isActive: z.boolean().default(true),
   isFeatured: z.boolean().default(false),
+  sortOrder: z.number().default(0),
+})
+
+export const modalCheckoutSchema = z.object({
+  customerName: z.string().min(2, 'Vui lòng nhập họ tên (ít nhất 2 ký tự)'),
+  phone: z
+    .string()
+    .min(9, 'Số điện thoại không hợp lệ')
+    .max(11, 'Số điện thoại không hợp lệ')
+    .regex(/^[0-9]+$/, 'Số điện thoại chỉ gồm chữ số'),
+  email: z.string().email('Email không hợp lệ'),
+  note: z.string().max(500, 'Ghi chú tối đa 500 ký tự').optional(),
+  planId: z.string().min(1, 'Vui lòng chọn gói'),
+  honeypot: z.string().max(0, 'Invalid').optional(),
 })
 
 export const settingSchema = z.object({
-  shopName: z.string().min(1),
-  zalo: z.string().min(9),
-  facebook: z.string(),
-  telegram: z.string(),
-  supportEmail: z.string().email(),
-  bankName: z.string(),
-  bankAccount: z.string(),
-  bankOwner: z.string(),
-  qrCodeUrl: z.string().url().optional().or(z.literal('')),
+  shopName: z.string().min(1, 'Tên shop không được trống'),
+  zalo: z.string().default(''),
+  zaloLink: z.string().nullable().optional(),
+  facebook: z.string().default(''),
+  facebookLink: z.string().nullable().optional(),
+  telegram: z.string().default(''),
+  telegramLink: z.string().nullable().optional(),
+  hotline: z.string().nullable().optional(),
+  supportEmail: z.string().email('Email không hợp lệ'),
+  bankName: z.string().default(''),
+  bankBin: z.string().nullable().optional(),
+  bankAccount: z.string().default(''),
+  bankOwner: z.string().default(''),
+  qrCodeUrl: z.string().nullable().optional(),
+  maintenanceMode: z.boolean().default(false),
+  maintenanceTitle: z.string().nullable().optional(),
+  maintenanceMessage: z.string().nullable().optional(),
+  deliveryTemplate: z.string().nullable().optional(),
 })
 
 export type OrderFormData = z.infer<typeof orderSchema>
+export type ModalCheckoutData = z.infer<typeof modalCheckoutSchema>
+
 export type AdminLoginData = z.infer<typeof adminLoginSchema>
 export type UpdateOrderData = z.infer<typeof updateOrderSchema>
 export type ProductData = z.infer<typeof productSchema>

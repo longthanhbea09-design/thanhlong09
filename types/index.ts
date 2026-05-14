@@ -3,9 +3,14 @@ export interface ProductPlan {
   productId: string
   name: string
   duration: string
+  type: string
   price: number
+  warrantyText: string
   description: string | null
+  badge: string | null
+  available: boolean
   isActive: boolean
+  sortOrder: number
 }
 
 export interface Product {
@@ -17,8 +22,10 @@ export interface Product {
   priceFrom: number
   badge: string | null
   icon: string
+  imageUrl: string | null
   isActive: boolean
   isFeatured: boolean
+  sortOrder: number
   createdAt: Date
   updatedAt: Date
   plans: ProductPlan[]
@@ -36,6 +43,13 @@ export interface Order {
   note: string | null
   status: string
   internalNote: string | null
+  amount: number
+  paymentStatus: string
+  paidAt: Date | null
+  deliveryContent: string | null
+  deliveryVisible: boolean
+  deliveredAt: Date | null
+  completedAt: Date | null
   createdAt: Date
   updatedAt: Date
   product: Product
@@ -46,13 +60,22 @@ export interface Setting {
   id: string
   shopName: string
   zalo: string
+  zaloLink: string | null
   facebook: string
+  facebookLink: string | null
   telegram: string
+  telegramLink: string | null
+  hotline: string | null
   supportEmail: string
   bankName: string
+  bankBin: string | null
   bankAccount: string
   bankOwner: string
   qrCodeUrl: string | null
+  maintenanceMode: boolean
+  maintenanceTitle: string | null
+  maintenanceMessage: string | null
+  deliveryTemplate: string | null
 }
 
 export interface Admin {

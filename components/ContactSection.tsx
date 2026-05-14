@@ -10,12 +10,16 @@ export default function ContactSection({ settings }: ContactSectionProps) {
   const zalo = settings?.zalo || '0924555517'
   const zaloDisplay = zalo.replace(/(\d{4})(\d{3})(\d{3})/, '$1 $2 $3')
 
+  const facebookLink = settings?.facebookLink || null
+  const telegramLink = settings?.telegramLink || null
+  const email = settings?.supportEmail || 'support@thanhlongshop.net'
+
   const contacts = [
     {
       icon: MessageCircle,
       label: 'Zalo (ưu tiên)',
       value: zaloDisplay,
-      href: `https://zalo.me/${zalo}`,
+      href: settings?.zaloLink || `https://zalo.me/${zalo}`,
       color: 'text-blue-400',
       bg: 'bg-blue-500/10',
       border: 'border-blue-500/20',
@@ -24,8 +28,8 @@ export default function ContactSection({ settings }: ContactSectionProps) {
     {
       icon: Phone,
       label: 'Gọi điện',
-      value: zaloDisplay,
-      href: `tel:${zalo}`,
+      value: settings?.hotline || zaloDisplay,
+      href: `tel:${settings?.hotline || zalo}`,
       color: 'text-green-400',
       bg: 'bg-green-500/10',
       border: 'border-green-500/20',
@@ -35,7 +39,7 @@ export default function ContactSection({ settings }: ContactSectionProps) {
       icon: Facebook,
       label: 'Facebook',
       value: settings?.facebook || 'Thành Long',
-      href: 'https://facebook.com',
+      href: facebookLink,
       color: 'text-indigo-400',
       bg: 'bg-indigo-500/10',
       border: 'border-indigo-500/20',
@@ -45,7 +49,7 @@ export default function ContactSection({ settings }: ContactSectionProps) {
       icon: Send,
       label: 'Telegram',
       value: settings?.telegram || '@thanhlongshop',
-      href: 'https://t.me/thanhlongshop',
+      href: telegramLink,
       color: 'text-cyan-400',
       bg: 'bg-cyan-500/10',
       border: 'border-cyan-500/20',
@@ -54,8 +58,8 @@ export default function ContactSection({ settings }: ContactSectionProps) {
     {
       icon: Mail,
       label: 'Email',
-      value: settings?.supportEmail || 'support@thanhlongshop.net',
-      href: `mailto:${settings?.supportEmail || 'support@thanhlongshop.net'}`,
+      value: email,
+      href: `mailto:${email}`,
       color: 'text-orange-400',
       bg: 'bg-orange-500/10',
       border: 'border-orange-500/20',
@@ -113,7 +117,7 @@ export default function ContactSection({ settings }: ContactSectionProps) {
         {/* Main CTA */}
         <div className="text-center">
           <a
-            href={`https://zalo.me/${zalo}`}
+            href={settings?.zaloLink || `https://zalo.me/${zalo}`}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-3 px-8 py-5 rounded-2xl bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-400 hover:to-cyan-400 text-white font-bold text-lg transition-all duration-200 shadow-xl shadow-blue-500/25 active:scale-95"

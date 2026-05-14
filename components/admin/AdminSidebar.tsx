@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard,
   ShoppingBag,
@@ -22,15 +22,15 @@ const navItems = [
 
 export default function AdminSidebar() {
   const pathname = usePathname()
-  const router = useRouter()
 
   const handleLogout = async () => {
     await fetch('/api/admin/logout', { method: 'POST' })
-    router.push('/admin/login')
+    // Full page reload — clears Next.js router cache so layout re-evaluates cookie
+    window.location.href = '/admin/login'
   }
 
   return (
-    <aside className="w-64 min-h-screen bg-[#030712] border-r border-white/10 flex flex-col">
+    <aside className="fixed left-0 top-0 h-screen w-64 bg-[#030712] border-r border-white/10 flex flex-col z-50 overflow-y-auto">
       {/* Logo */}
       <div className="p-6 border-b border-white/10">
         <Link href="/admin/dashboard" className="flex items-center gap-2">

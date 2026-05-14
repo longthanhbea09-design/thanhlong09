@@ -7,11 +7,11 @@ const JWT_SECRET = new TextEncoder().encode(
 
 export const COOKIE_NAME = 'tls-admin-token'
 
-export async function signToken(payload: Record<string, unknown>): Promise<string> {
+export async function signToken(payload: Record<string, unknown>, expiresIn = '7d'): Promise<string> {
   return await new SignJWT(payload)
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
-    .setExpirationTime('7d')
+    .setExpirationTime(expiresIn)
     .sign(JWT_SECRET)
 }
 

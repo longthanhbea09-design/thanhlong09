@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { productSchema } from '@/lib/validators'
+import { securityLog } from '@/lib/securityLog'
+import { getClientIp } from '@/lib/rateLimit'
 
 export async function GET() {
   try {
     const products = await prisma.product.findMany({
       include: {
-        plans: { where: { isActive: true }, orderBy: { price: 'asc' } },
+        plans: { orderBy: { sortOrder: 'asc' } },
         _count: { select: { orders: true } },
       },
       orderBy: { createdAt: 'desc' },
@@ -36,6 +38,7 @@ export async function POST(request: NextRequest) {
     }
 
     const product = await prisma.product.create({ data: parsed.data })
+    securityLog('PRODUCT_CREATED', { ip: getClientIp(request), productId: product.id, slug: product.slug })
     return NextResponse.json(product, { status: 201 })
   } catch (error) {
     console.error('POST /api/admin/products error:', error)

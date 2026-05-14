@@ -14,9 +14,6 @@ export default function Hero() {
     document.querySelector('#products')?.scrollIntoView({ behavior: 'smooth' })
   }
 
-  const scrollToOrder = () => {
-    document.querySelector('#order-form')?.scrollIntoView({ behavior: 'smooth' })
-  }
 
   return (
     <section className="relative min-h-screen flex items-center pt-20 overflow-hidden">
@@ -134,10 +131,10 @@ export default function Hero() {
               </div>
 
               <button
-                onClick={scrollToOrder}
+                onClick={scrollToProducts}
                 className="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 text-white font-semibold text-sm hover:opacity-90 transition-opacity"
               >
-                Đặt hàng ngay →
+                Mua hàng →
               </button>
             </div>
           </div>

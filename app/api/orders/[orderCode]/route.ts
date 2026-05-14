@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
+export const dynamic = 'force-dynamic'
+
+/**
+ * Public endpoint — used by /checkout/[orderCode] page to poll payment status.
+ * Does NOT return deliveryContent: phone verification is required for that.
+ * Customers who want delivery info must use POST /api/orders/lookup (orderCode + phone).
+ */
 export async function GET(
   _request: NextRequest,
   { params }: { params: { orderCode: string } }
@@ -18,6 +25,7 @@ export async function GET(
       return NextResponse.json({ error: 'Không tìm thấy đơn hàng' }, { status: 404 })
     }
 
+    // deliveryContent is intentionally omitted — phone not verified here
     return NextResponse.json({
       orderCode: order.orderCode,
       customerName: order.customerName,

@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import { CheckCircle2, Clock, Copy, RefreshCw, MessageCircle, AlertCircle } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
+import { getVietQRUrl } from '@/lib/vietqr'
 
 interface OrderData {
   orderCode: string
@@ -17,18 +18,26 @@ interface OrderData {
   paymentProvider: string | null
   paidAt: string | null
   expiredAt: string | null
+  // deliveryContent is not returned here — phone verification required
+  // Customers must use /orders/lookup to retrieve delivery info securely
 }
 
-const ZALO = process.env.NEXT_PUBLIC_ZALO || '0924555517'
-const BANK_NAME = 'MB Bank'
-const BANK_ACCOUNT = '0924555517'
-const BANK_OWNER = 'NGUYEN THANH LONG'
+interface ShopSettings {
+  bankName: string
+  bankBin: string | null
+  bankAccount: string
+  bankOwner: string
+  qrCodeUrl: string | null
+  zalo: string
+  zaloLink: string | null
+}
 
 export default function CheckoutPage() {
   const params = useParams()
   const orderCode = params.orderCode as string
 
   const [order, setOrder] = useState<OrderData | null>(null)
+  const [settings, setSettings] = useState<ShopSettings | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
@@ -49,6 +58,10 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     fetchOrder()
+    fetch('/api/settings', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then(setSettings)
+      .catch(() => {})
   }, [fetchOrder])
 
   // Poll mỗi 5 giây khi đang chờ thanh toán
@@ -114,15 +127,29 @@ export default function CheckoutPage() {
             )}
           </div>
 
+          {/* Delivery info — requires phone verification via /orders/lookup */}
+          <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-4 mb-5 text-left">
+            <p className="text-blue-300 font-semibold text-sm mb-1">Xem thông tin bàn giao</p>
+            <p className="text-slate-400 text-xs">
+              Để bảo mật, thông tin bàn giao cần xác minh bằng số điện thoại.{' '}
+              <a href="/orders/lookup" className="text-cyan-400 hover:underline font-medium">
+                Tra cứu đơn hàng →
+              </a>
+            </p>
+          </div>
+
           <a
-            href={`https://zalo.me/${ZALO}`}
+            href={settings?.zaloLink || `https://zalo.me/${settings?.zalo || ''}`}
             target="_blank" rel="noopener noreferrer"
             className="w-full btn-primary py-4 text-base justify-center"
           >
             <MessageCircle className="w-5 h-5" />
-            Nhắn Zalo để nhận dịch vụ
+            Nhắn Zalo hỗ trợ
           </a>
-          <a href="/" className="mt-4 block text-slate-500 hover:text-white text-sm transition-colors">
+          <a href="/orders/lookup" className="mt-3 block text-center text-slate-400 hover:text-white text-sm transition-colors">
+            Tra cứu lại đơn hàng
+          </a>
+          <a href="/" className="mt-2 block text-slate-500 hover:text-white text-sm transition-colors text-center">
             ← Về trang chủ
           </a>
         </div>
@@ -164,32 +191,46 @@ export default function CheckoutPage() {
         <div className="glass rounded-2xl p-6 border border-cyan-500/20 mb-5">
           <p className="text-slate-400 text-sm font-medium mb-5">Thông tin chuyển khoản</p>
 
-          {/* QR Code */}
-          {order.qrCode && (
-            <div className="flex justify-center mb-6">
-              <div className="bg-white p-3 rounded-2xl">
-                <img
-                  src={order.qrCode}
-                  alt="QR thanh toán"
-                  width={200}
-                  height={200}
-                  className="block"
-                />
+          {/* QR Code — sinh động từ VietQR (bankBin + amount + orderCode) */}
+          {(() => {
+            const vietqrUrl =
+              settings?.bankBin && settings?.bankAccount
+                ? getVietQRUrl({
+                    bankBin: settings.bankBin,
+                    bankAccount: settings.bankAccount,
+                    amount: order.amount,
+                    addInfo: order.orderCode,
+                    accountName: settings.bankOwner || '',
+                  })
+                : null
+            const qrSrc = vietqrUrl || settings?.qrCodeUrl || order.qrCode
+            return qrSrc ? (
+              <div className="flex justify-center mb-6">
+                <div className="bg-white p-3 rounded-2xl">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={qrSrc}
+                    alt="QR thanh toán"
+                    width={200}
+                    height={200}
+                    className="block"
+                  />
+                </div>
               </div>
-            </div>
-          )}
+            ) : null
+          })()}
 
-          {/* Bank Details */}
+          {/* Bank Details — lấy từ settings DB */}
           <div className="space-y-3">
-            <BankRow label="Ngân hàng" value={BANK_NAME} />
+            <BankRow label="Ngân hàng" value={settings?.bankName || '—'} />
             <BankRow
               label="Số tài khoản"
-              value={BANK_ACCOUNT}
+              value={settings?.bankAccount || '—'}
               copyKey="account"
               copied={copied}
-              onCopy={() => copy(BANK_ACCOUNT, 'account')}
+              onCopy={settings?.bankAccount ? () => copy(settings.bankAccount, 'account') : undefined}
             />
-            <BankRow label="Chủ tài khoản" value={BANK_OWNER} />
+            <BankRow label="Chủ tài khoản" value={settings?.bankOwner || '—'} />
             <BankRow
               label="Số tiền"
               value={formatPrice(order.amount)}
@@ -242,7 +283,7 @@ export default function CheckoutPage() {
         </button>
 
         <a
-          href={`https://zalo.me/${ZALO}`}
+          href={settings?.zaloLink || `https://zalo.me/${settings?.zalo || ''}`}
           target="_blank" rel="noopener noreferrer"
           className="w-full btn-secondary py-4 text-base justify-center block text-center"
         >

@@ -30,7 +30,7 @@ export default function Footer({ settings }: FooterProps) {
               Domain: <span className="text-white font-medium">thanhlongshop.net</span>
             </div>
             <a
-              href={`https://zalo.me/${zalo}`}
+              href={settings?.zaloLink || `https://zalo.me/${zalo}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-500/20 border border-blue-500/30 text-blue-400 hover:bg-blue-500/30 transition-all text-sm font-medium"
