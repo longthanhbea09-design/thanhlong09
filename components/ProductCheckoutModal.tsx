@@ -141,11 +141,19 @@ export default function ProductCheckoutModal({ product, settings, onClose }: Pro
         amount: json.amount ?? selectedVariant.price,
         variantName: selectedVariant.name,
       })
-      // For MoMo: seed mbBankInfo.qrCodeUrl with the MoMo QR so the same UI renders it
-      if (json.qrCode) {
-        setMbBankInfo({ bankName: null, accountNumber: null, accountName: null, paymentContent: null, qrCodeUrl: json.qrCode })
-      }
       setStep(3)
+
+      // Fetch order details immediately so bank info shows without waiting for the poll interval
+      fetch(`/api/orders/${json.orderCode}`, { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (data?.mbBankInfo) setMbBankInfo(data.mbBankInfo)
+          // MoMo: fallback to QR from create response if order API has no bank info
+          else if (json.qrCode) setMbBankInfo({ bankName: null, accountNumber: null, accountName: null, paymentContent: null, qrCodeUrl: json.qrCode })
+        })
+        .catch(() => {
+          if (json.qrCode) setMbBankInfo({ bankName: null, accountNumber: null, accountName: null, paymentContent: null, qrCodeUrl: json.qrCode })
+        })
     } catch {
       setSubmitError('Không thể kết nối. Vui lòng kiểm tra mạng và thử lại.')
     } finally {
@@ -472,61 +480,65 @@ export default function ProductCheckoutModal({ product, settings, onClose }: Pro
                   </div>
                 </div>
 
-                {/* Bank info — lấy từ order API (PaymentSettings tại thời điểm tạo đơn), không đọc Setting cũ */}
-                {mbBankInfo?.accountNumber && (
-                  <div className="bg-white/5 border border-white/10 rounded-xl divide-y divide-white/5 mb-5">
-                    {mbBankInfo.bankName && (
-                      <div className="flex justify-between items-center px-4 py-3">
-                        <span className="text-slate-400 text-sm">Ngân hàng</span>
-                        <span className="text-white font-medium text-sm">{mbBankInfo.bankName}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between items-center px-4 py-3">
-                      <span className="text-slate-400 text-sm">Số tài khoản</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-white font-mono font-semibold">{mbBankInfo.accountNumber}</span>
-                        <button
-                          onClick={() => handleCopy(mbBankInfo.accountNumber!, 'account')}
-                          className="text-slate-400 hover:text-white transition-colors"
-                        >
-                          {copiedField === 'account' ? (
-                            <Check className="w-4 h-4 text-emerald-400" />
-                          ) : (
-                            <Copy className="w-4 h-4" />
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                    {mbBankInfo.accountName && (
-                      <div className="flex justify-between items-center px-4 py-3">
-                        <span className="text-slate-400 text-sm">Chủ tài khoản</span>
-                        <span className="text-white font-medium text-sm">{mbBankInfo.accountName}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between items-center px-4 py-3">
-                      <span className="text-slate-400 text-sm">Số tiền</span>
-                      <span className="gradient-text font-bold">{formatPrice(orderData.amount)}</span>
-                    </div>
-                    <div className="flex justify-between items-center px-4 py-3">
-                      <span className="text-slate-400 text-sm shrink-0">Nội dung CK</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-cyan-400 font-mono text-sm">
-                          {mbBankInfo.paymentContent || orderData.orderCode}
-                        </span>
-                        <button
-                          onClick={() => handleCopy(mbBankInfo.paymentContent || orderData.orderCode, 'orderCode')}
-                          className="text-slate-400 hover:text-white transition-colors"
-                        >
-                          {copiedField === 'orderCode' ? (
-                            <Check className="w-4 h-4 text-emerald-400" />
-                          ) : (
-                            <Copy className="w-4 h-4" />
-                          )}
-                        </button>
-                      </div>
+                {/* Bank info — luôn hiển thị, dùng skeleton khi chưa load xong */}
+                <div className="bg-white/5 border border-white/10 rounded-xl divide-y divide-white/5 mb-5">
+                  <div className="flex justify-between items-center px-4 py-3">
+                    <span className="text-slate-400 text-sm">Ngân hàng</span>
+                    <span className="text-white font-medium text-sm">
+                      {mbBankInfo?.bankName ?? <span className="inline-block w-20 h-4 bg-white/10 rounded animate-pulse" />}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center px-4 py-3">
+                    <span className="text-slate-400 text-sm">Số tài khoản</span>
+                    <div className="flex items-center gap-2">
+                      {mbBankInfo?.accountNumber ? (
+                        <>
+                          <span className="text-white font-mono font-semibold">{mbBankInfo.accountNumber}</span>
+                          <button
+                            onClick={() => handleCopy(mbBankInfo.accountNumber!, 'account')}
+                            className="text-slate-400 hover:text-white transition-colors"
+                          >
+                            {copiedField === 'account' ? (
+                              <Check className="w-4 h-4 text-emerald-400" />
+                            ) : (
+                              <Copy className="w-4 h-4" />
+                            )}
+                          </button>
+                        </>
+                      ) : (
+                        <span className="inline-block w-28 h-4 bg-white/10 rounded animate-pulse" />
+                      )}
                     </div>
                   </div>
-                )}
+                  <div className="flex justify-between items-center px-4 py-3">
+                    <span className="text-slate-400 text-sm">Chủ tài khoản</span>
+                    <span className="text-white font-medium text-sm">
+                      {mbBankInfo?.accountName ?? <span className="inline-block w-32 h-4 bg-white/10 rounded animate-pulse" />}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center px-4 py-3">
+                    <span className="text-slate-400 text-sm">Số tiền</span>
+                    <span className="gradient-text font-bold">{formatPrice(orderData.amount)}</span>
+                  </div>
+                  <div className="flex justify-between items-center px-4 py-3">
+                    <span className="text-slate-400 text-sm shrink-0">Nội dung CK</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-cyan-400 font-mono text-sm">
+                        {mbBankInfo?.paymentContent || orderData.orderCode}
+                      </span>
+                      <button
+                        onClick={() => handleCopy(mbBankInfo?.paymentContent || orderData.orderCode, 'orderCode')}
+                        className="text-slate-400 hover:text-white transition-colors"
+                      >
+                        {copiedField === 'orderCode' ? (
+                          <Check className="w-4 h-4 text-emerald-400" />
+                        ) : (
+                          <Copy className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
 
                 {/* Polling indicator */}
                 <div className="flex items-center justify-center gap-2 text-slate-500 text-sm py-2">
