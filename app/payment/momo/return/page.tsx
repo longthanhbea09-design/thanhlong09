@@ -2,6 +2,9 @@ import { Suspense } from 'react'
 import { RefreshCw } from 'lucide-react'
 import MomoReturnClient from './MomoReturnClient'
 
+// Always render on demand — page reads MoMo URL params at request time
+export const dynamic = 'force-dynamic'
+
 export default function MomoReturnPage() {
   return (
     <Suspense
