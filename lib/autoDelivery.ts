@@ -54,18 +54,19 @@ export async function autoDelivery(orderId: string): Promise<DeliveryOutcome> {
       | { outcome: 'delivered'; deliveryContent: string }
 
     const txResult: TxResult = await prisma.$transaction(async (tx) => {
-      // Find the oldest available account for this product+plan
+      // Find the oldest available account for this product+plan.
+      // orderId: null is intentionally omitted — Prisma+MongoDB does not correctly
+      // match null ObjectId fields in a WHERE clause. We verify orderId===null below.
       const account = await tx.accountStock.findFirst({
         where: {
           productId: order.productId,
           planId: order.planId,
           status: 'available',
-          orderId: null,
         },
         orderBy: { createdAt: 'asc' },
       })
 
-      if (!account) {
+      if (!account || account.orderId !== null) {
         await tx.order.update({
           where: { id: orderId },
           data: { deliveryStatus: 'out_of_stock' },
