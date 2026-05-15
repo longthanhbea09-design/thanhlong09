@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { encrypt, decrypt } from '@/lib/security/encryption'
+import { encrypt, decrypt, isEncrypted } from '@/lib/security/encryption'
 
 export const PAYMENT_SETTINGS_ID = 'main'
 
@@ -69,7 +69,9 @@ export async function getMomoSecretKey(settings?: PaymentSettingsData): Promise<
   const s = settings ?? await getPaymentSettings()
   if (s.momoSecretKeyEncrypted) {
     const decrypted = decrypt(s.momoSecretKeyEncrypted)
-    if (decrypted) return decrypted
+    // Guard: if ENCRYPTION_KEY is missing on this host, decrypt() returns the raw
+    // iv:tag:ciphertext string instead of the plaintext — don't use it as the key.
+    if (decrypted && !isEncrypted(decrypted)) return decrypted
   }
   return process.env.MOMO_SECRET_KEY ?? ''
 }
@@ -83,7 +85,9 @@ export async function getSePayApiKey(settings?: PaymentSettingsData): Promise<st
   const s = settings ?? await getPaymentSettings()
   if (s.sePayApiKeyEncrypted) {
     const decrypted = decrypt(s.sePayApiKeyEncrypted)
-    if (decrypted) return decrypted
+    // Guard: if ENCRYPTION_KEY is missing on this host, decrypt() returns the raw
+    // iv:tag:ciphertext string instead of the plaintext — don't use it as the key.
+    if (decrypted && !isEncrypted(decrypted)) return decrypted
   }
   return process.env.SEPAY_API_KEY ?? ''
 }
