@@ -80,7 +80,10 @@ model Order {
   expiredAt       DateTime?
   accessToken     String?              // random 64-hex token for /order-success access
   paymentMethodId String?              // ID of PaymentMethod selected by customer
-  paymentContent  String?              // Transfer content stored at order creation (e.g. "THANHLONG ORD20260515")
+  paymentContent      String?   // Transfer content stored at order creation (e.g. "THANHLONG TLS-xxxx")
+  paymentBankName     String?   // Snapshot of bank name at order creation
+  paymentAccountNumber String?  // Snapshot of account number at order creation
+  paymentAccountName  String?   // Snapshot of account holder name at order creation
   deliveryStatus  String               @default("waiting_payment")
   deliveryContent String?
   deliveryVisible Boolean              @default(false)

@@ -26,16 +26,17 @@ export async function GET(
       return NextResponse.json({ error: 'Không tìm thấy đơn hàng' }, { status: 404 })
     }
 
-    // For MB_BANK orders: include bank display info from PaymentSettings
+    // For MB_BANK orders: include bank display info.
+    // Priority: snapshotted values at order creation → current PaymentSettings fallback (for old orders).
+    // QR always uses the stored qrCode (snapshotted per-order) so it matches the account used when ordering.
     let mbBankInfo: Record<string, string | null> | null = null
     if (order.paymentProvider === 'MB_BANK') {
       const settings = await getPaymentSettings()
-      // Re-generate QR URL in case settings changed (or use stored order.qrCode)
       const qrUrl = order.qrCode || buildMbBankQrUrl(settings, order.amount, order.paymentContent ?? order.orderCode)
       mbBankInfo = {
-        bankName: settings.mbBankName,
-        accountNumber: settings.mbBankAccountNumber,
-        accountName: settings.mbBankAccountName,
+        bankName: order.paymentBankName ?? settings.mbBankName,
+        accountNumber: order.paymentAccountNumber ?? settings.mbBankAccountNumber,
+        accountName: order.paymentAccountName ?? settings.mbBankAccountName,
         paymentContent: order.paymentContent ?? order.orderCode,
         qrCodeUrl: qrUrl,
       }

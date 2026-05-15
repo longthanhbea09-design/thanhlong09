@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import { X, ChevronLeft, Loader2, CheckCircle, Copy, Check } from 'lucide-react'
 import { getProductVariants, type ProductVariant } from '@/lib/defaultVariants'
 import { formatPrice } from '@/lib/utils'
-import { getVietQRUrl } from '@/lib/vietqr'
 import ProductLogo from './ProductLogo'
 import type { Product, ProductPlan, Setting } from '@/types'
 
@@ -16,11 +15,17 @@ interface Props {
   onClose: () => void
 }
 
+interface MbBankInfo {
+  bankName: string | null
+  accountNumber: string | null
+  accountName: string | null
+  paymentContent: string | null
+  qrCodeUrl: string | null
+}
+
 interface OrderData {
   orderCode: string
   accessToken: string
-  qrCode: string
-  paymentUrl: string
   amount: number
   variantName: string
 }
@@ -42,6 +47,7 @@ export default function ProductCheckoutModal({ product, settings, onClose }: Pro
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [orderData, setOrderData] = useState<OrderData | null>(null)
+  const [mbBankInfo, setMbBankInfo] = useState<MbBankInfo | null>(null)
   const [paymentStatus, setPaymentStatus] = useState<string>('pending')
   const [copiedField, setCopiedField] = useState<string | null>(null)
   const [freshPlans, setFreshPlans] = useState<ProductPlan[] | null>(null)
@@ -74,9 +80,11 @@ export default function ProductCheckoutModal({ product, settings, onClose }: Pro
 
     const poll = async () => {
       try {
-        const res = await fetch(`/api/orders/${orderData.orderCode}`)
+        const res = await fetch(`/api/orders/${orderData.orderCode}`, { cache: 'no-store' })
         const json = await res.json()
         if (json.paymentStatus === 'paid') setPaymentStatus('paid')
+        // Always update bank info from the order so it reflects current PaymentSettings
+        if (json.mbBankInfo) setMbBankInfo(json.mbBankInfo)
       } catch { /* ignore network errors */ }
     }
 
@@ -130,11 +138,13 @@ export default function ProductCheckoutModal({ product, settings, onClose }: Pro
       setOrderData({
         orderCode: json.orderCode,
         accessToken: json.accessToken || '',
-        qrCode: json.qrCode || '',
-        paymentUrl: json.paymentUrl || '',
         amount: json.amount ?? selectedVariant.price,
         variantName: selectedVariant.name,
       })
+      // For MoMo: seed mbBankInfo.qrCodeUrl with the MoMo QR so the same UI renders it
+      if (json.qrCode) {
+        setMbBankInfo({ bankName: null, accountNumber: null, accountName: null, paymentContent: null, qrCodeUrl: json.qrCode })
+      }
       setStep(3)
     } catch {
       setSubmitError('Không thể kết nối. Vui lòng kiểm tra mạng và thử lại.')
@@ -442,58 +452,41 @@ export default function ProductCheckoutModal({ product, settings, onClose }: Pro
                   </p>
                 </div>
 
-                {/* QR Code — sinh động per-order từ VietQR (bankBin + amount + orderCode) */}
-                {(() => {
-                  const vietqrUrl =
-                    settings?.bankBin && settings?.bankAccount
-                      ? getVietQRUrl({
-                          bankBin: settings.bankBin,
-                          bankAccount: settings.bankAccount,
-                          amount: orderData.amount,
-                          addInfo: orderData.orderCode,
-                          accountName: settings.bankOwner || '',
-                        })
-                      : null
-                  const qrSrc = vietqrUrl || settings?.qrCodeUrl || orderData.qrCode || null
-                  return (
-                    <div className="flex justify-center mb-5">
-                      <div className="bg-white p-3 rounded-2xl shadow-lg">
-                        {qrSrc ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={qrSrc}
-                            alt="QR thanh toán"
-                            width={200}
-                            height={200}
-                            className="rounded-xl block"
-                          />
-                        ) : (
-                          <div className="w-[200px] h-[200px] flex items-center justify-center text-slate-400 text-sm">
-                            <Loader2 className="w-6 h-6 animate-spin" />
-                          </div>
-                        )}
+                {/* QR Code — luôn lấy từ order API (snapshotted tại thời điểm tạo đơn) */}
+                <div className="flex justify-center mb-5">
+                  <div className="bg-white p-3 rounded-2xl shadow-lg">
+                    {mbBankInfo?.qrCodeUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={mbBankInfo.qrCodeUrl}
+                        alt="QR thanh toán"
+                        width={200}
+                        height={200}
+                        className="rounded-xl block"
+                      />
+                    ) : (
+                      <div className="w-[200px] h-[200px] flex items-center justify-center text-slate-400 text-sm">
+                        <Loader2 className="w-6 h-6 animate-spin" />
                       </div>
-                    </div>
-                  )
-                })()}
-
-                {/* Bank info table — lấy từ settings DB, không hardcode */}
-                <div className="bg-white/5 border border-white/10 rounded-xl divide-y divide-white/5 mb-5">
-                  <div className="flex justify-between items-center px-4 py-3">
-                    <span className="text-slate-400 text-sm">Ngân hàng</span>
-                    <span className="text-white font-medium text-sm">
-                      {settings?.bankName || '—'}
-                    </span>
+                    )}
                   </div>
-                  <div className="flex justify-between items-center px-4 py-3">
-                    <span className="text-slate-400 text-sm">Số tài khoản</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-white font-mono font-semibold">
-                        {settings?.bankAccount || '—'}
-                      </span>
-                      {settings?.bankAccount && (
+                </div>
+
+                {/* Bank info — lấy từ order API (PaymentSettings tại thời điểm tạo đơn), không đọc Setting cũ */}
+                {mbBankInfo?.accountNumber && (
+                  <div className="bg-white/5 border border-white/10 rounded-xl divide-y divide-white/5 mb-5">
+                    {mbBankInfo.bankName && (
+                      <div className="flex justify-between items-center px-4 py-3">
+                        <span className="text-slate-400 text-sm">Ngân hàng</span>
+                        <span className="text-white font-medium text-sm">{mbBankInfo.bankName}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center px-4 py-3">
+                      <span className="text-slate-400 text-sm">Số tài khoản</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-white font-mono font-semibold">{mbBankInfo.accountNumber}</span>
                         <button
-                          onClick={() => handleCopy(settings.bankAccount, 'account')}
+                          onClick={() => handleCopy(mbBankInfo.accountNumber!, 'account')}
                           className="text-slate-400 hover:text-white transition-colors"
                         >
                           {copiedField === 'account' ? (
@@ -502,36 +495,38 @@ export default function ProductCheckoutModal({ product, settings, onClose }: Pro
                             <Copy className="w-4 h-4" />
                           )}
                         </button>
-                      )}
+                      </div>
+                    </div>
+                    {mbBankInfo.accountName && (
+                      <div className="flex justify-between items-center px-4 py-3">
+                        <span className="text-slate-400 text-sm">Chủ tài khoản</span>
+                        <span className="text-white font-medium text-sm">{mbBankInfo.accountName}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center px-4 py-3">
+                      <span className="text-slate-400 text-sm">Số tiền</span>
+                      <span className="gradient-text font-bold">{formatPrice(orderData.amount)}</span>
+                    </div>
+                    <div className="flex justify-between items-center px-4 py-3">
+                      <span className="text-slate-400 text-sm shrink-0">Nội dung CK</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-cyan-400 font-mono text-sm">
+                          {mbBankInfo.paymentContent || orderData.orderCode}
+                        </span>
+                        <button
+                          onClick={() => handleCopy(mbBankInfo.paymentContent || orderData.orderCode, 'orderCode')}
+                          className="text-slate-400 hover:text-white transition-colors"
+                        >
+                          {copiedField === 'orderCode' ? (
+                            <Check className="w-4 h-4 text-emerald-400" />
+                          ) : (
+                            <Copy className="w-4 h-4" />
+                          )}
+                        </button>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex justify-between items-center px-4 py-3">
-                    <span className="text-slate-400 text-sm">Chủ tài khoản</span>
-                    <span className="text-white font-medium text-sm">
-                      {settings?.bankOwner || '—'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center px-4 py-3">
-                    <span className="text-slate-400 text-sm">Số tiền</span>
-                    <span className="gradient-text font-bold">{formatPrice(orderData.amount)}</span>
-                  </div>
-                  <div className="flex justify-between items-center px-4 py-3">
-                    <span className="text-slate-400 text-sm shrink-0">Nội dung CK</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-cyan-400 font-mono text-sm">{orderData.orderCode}</span>
-                      <button
-                        onClick={() => handleCopy(orderData.orderCode, 'orderCode')}
-                        className="text-slate-400 hover:text-white transition-colors"
-                      >
-                        {copiedField === 'orderCode' ? (
-                          <Check className="w-4 h-4 text-emerald-400" />
-                        ) : (
-                          <Copy className="w-4 h-4" />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                )}
 
                 {/* Polling indicator */}
                 <div className="flex items-center justify-center gap-2 text-slate-500 text-sm py-2">

@@ -127,6 +127,13 @@ export async function POST(request: NextRequest) {
         paymentContent,
         accessToken,
         expiredAt,
+        // Snapshot bank info at creation time so checkout page always shows
+        // the account/bank used when order was placed — even if admin changes settings later
+        ...(method === 'MB_BANK' && {
+          paymentBankName: settings.mbBankName,
+          paymentAccountNumber: settings.mbBankAccountNumber,
+          paymentAccountName: settings.mbBankAccountName,
+        }),
       },
     })
 
