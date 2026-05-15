@@ -25,17 +25,29 @@ function buildDeliveryContent(acc: {
  * Never throws — returns an outcome string instead.
  */
 export async function autoDelivery(orderId: string): Promise<DeliveryOutcome> {
+  const tag = `[autoDelivery] orderId=${orderId}`
   try {
     const order = await prisma.order.findUnique({
       where: { id: orderId },
       include: { product: true, plan: true, accountStock: true },
     })
 
-    if (!order) return 'skip'
-    if (order.paymentStatus !== 'paid') return 'skip'
+    if (!order) {
+      console.warn(`${tag} → ORDER_NOT_FOUND`)
+      return 'skip'
+    }
+    if (order.paymentStatus !== 'paid') {
+      console.warn(`${tag} → SKIP paymentStatus=${order.paymentStatus} (must be paid)`)
+      return 'skip'
+    }
 
     // Idempotency: already delivered
-    if (order.deliveryStatus === 'delivered' || order.accountStock) return 'skip'
+    if (order.deliveryStatus === 'delivered' || order.accountStock) {
+      console.info(`${tag} → ALREADY_DELIVERED deliveryStatus=${order.deliveryStatus}`)
+      return 'skip'
+    }
+
+    console.info(`${tag} → searching stock for productId=${order.productId} planId=${order.planId}`)
 
     type TxResult =
       | { outcome: 'out_of_stock' }
@@ -58,8 +70,11 @@ export async function autoDelivery(orderId: string): Promise<DeliveryOutcome> {
           where: { id: orderId },
           data: { deliveryStatus: 'out_of_stock' },
         })
+        console.warn(`${tag} → OUT_OF_STOCK no available account for product=${order.product.name} plan=${order.plan.name}`)
         return { outcome: 'out_of_stock' }
       }
+
+      console.info(`${tag} → stock found accountId=${account.id}`)
 
       const now = new Date()
       // Decrypt before building delivery content — password may be encrypted
@@ -87,7 +102,6 @@ export async function autoDelivery(orderId: string): Promise<DeliveryOutcome> {
     })
 
     if (txResult.outcome === 'out_of_stock') {
-      console.warn(`[autoDelivery] OUT OF STOCK — orderId=${orderId} product=${order.product.name} plan=${order.plan.name}`)
       return 'out_of_stock'
     }
 
@@ -111,9 +125,10 @@ export async function autoDelivery(orderId: string): Promise<DeliveryOutcome> {
       })
     }
 
+    console.info(`${tag} → DELIVERED successfully`)
     return 'delivered'
   } catch (err) {
-    console.error('[autoDelivery] error:', err instanceof Error ? err.message : err)
+    console.error(`${tag} → ERROR:`, err instanceof Error ? err.stack : err)
     return 'error'
   }
 }
