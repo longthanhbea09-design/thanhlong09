@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { guardObjectId } from '@/lib/db/real'
 
 async function recomputePriceFrom(productId: string) {
   const plans = await prisma.productPlan.findMany({
@@ -34,6 +35,8 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const guard = guardObjectId(params.id)
+  if (guard) return guard
   try {
     const body = await request.json()
     const parsed = patchSchema.safeParse(body)
@@ -63,6 +66,8 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const guard = guardObjectId(params.id)
+  if (guard) return guard
   try {
     const hasOrders = await prisma.order.findFirst({ where: { planId: params.id } })
     const plan = await prisma.productPlan.findUnique({ where: { id: params.id }, select: { productId: true } })

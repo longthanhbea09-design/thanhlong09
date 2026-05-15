@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { sendDeliveryEmail } from '@/lib/email'
 import { getClientIp } from '@/lib/rateLimit'
 import { securityLog } from '@/lib/securityLog'
+import { guardObjectId } from '@/lib/db/real'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,6 +11,8 @@ export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const guard = guardObjectId(params.id)
+  if (guard) return guard
   const ip = getClientIp(request)
 
   const order = await prisma.order.findUnique({

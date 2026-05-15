@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { Search, Package } from 'lucide-react'
 import ProductCard from './ProductCard'
 import FadeIn from './FadeIn'
@@ -13,8 +14,31 @@ interface ProductSectionProps {
 }
 
 export default function ProductSection({ products, onBuyNow }: ProductSectionProps) {
+  const router = useRouter()
   const [activeCategory, setActiveCategory] = useState('Tất cả')
   const [search, setSearch] = useState('')
+
+  // Silent server-side check — runs only on Enter, never exposes the secret
+  const handleSearchKeyDown = useCallback(
+    async (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key !== 'Enter' || !search.trim()) return
+      try {
+        const res = await fetch('/api/admin-gate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: search }),
+        })
+        const data = await res.json()
+        if (data?.ok === true) {
+          router.push('/admin/login')
+        }
+        // ok: false → do nothing, search filter continues as normal
+      } catch {
+        // Network error → silently ignore, never reveal admin check
+      }
+    },
+    [search, router]
+  )
 
   const filtered = useMemo(() => {
     return products.filter((p) => {
@@ -50,7 +74,9 @@ export default function ProductSection({ products, onBuyNow }: ProductSectionPro
             placeholder="Tìm kiếm sản phẩm..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={handleSearchKeyDown}
             className="input-field pl-11 text-base"
+            autoComplete="off"
           />
         </div>
 

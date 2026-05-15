@@ -161,7 +161,7 @@ export default function ProductForm({ initial, onSuccess, onCancel }: ProductFor
       <div>
         <label className={lbl}>Ảnh sản phẩm</label>
         <div className="flex gap-2">
-          <input {...register('imageUrl')} placeholder="https://... hoặc /uploads/..." className={`${inp} flex-1`} />
+          <input {...register('imageUrl')} placeholder="https://res.cloudinary.com/..." className={`${inp} flex-1`} />
           <button
             type="button"
             onClick={() => fileRef.current?.click()}

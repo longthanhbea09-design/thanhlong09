@@ -136,6 +136,23 @@ model AccountStock {
   product   Product     @relation(fields: [productId], references: [id])
 }
 
+model SecurityLog {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  event     String
+  severity  String   @default("info")
+  ip        String?
+  userAgent String?
+  path      String?
+  method    String?
+  reason    String?
+  meta      String?
+  createdAt DateTime @default(now())
+
+  @@index([event])
+  @@index([createdAt])
+  @@index([ip])
+}
+
 // Setting dùng id string cố định "singleton" — không cần @db.ObjectId
 // vì MongoDB cho phép _id là string bất kỳ, và Setting không có relation
 model Setting {

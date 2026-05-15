@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { guardObjectIds } from '@/lib/db/real'
 
 const patchSchema = z.object({
   name: z.string().min(1).optional(),
@@ -15,6 +16,8 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string; variantId: string } }
 ) {
+  const guard = guardObjectIds({ productId: params.id, variantId: params.variantId })
+  if (guard) return guard
   try {
     const body = await request.json()
     const parsed = patchSchema.safeParse(body)
@@ -48,6 +51,8 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: { id: string; variantId: string } }
 ) {
+  const guard = guardObjectIds({ productId: params.id, variantId: params.variantId })
+  if (guard) return guard
   try {
     const hasOrders = await prisma.order.findFirst({ where: { planId: params.variantId } })
     if (hasOrders) {

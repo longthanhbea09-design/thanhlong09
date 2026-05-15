@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { guardObjectId } from '@/lib/db/real'
 
 const patchSchema = z.object({
   username: z.string().min(1).optional(),
@@ -13,6 +14,8 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const guard = guardObjectId(params.id)
+  if (guard) return guard
   try {
     const body = await request.json()
     const parsed = patchSchema.safeParse(body)
@@ -51,6 +54,8 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const guard = guardObjectId(params.id)
+  if (guard) return guard
   try {
     const account = await prisma.accountStock.findUnique({ where: { id: params.id } })
     if (!account) return NextResponse.json({ error: 'Không tìm thấy' }, { status: 404 })

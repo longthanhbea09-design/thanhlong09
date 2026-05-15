@@ -1,4 +1,3 @@
-import Link from 'next/link'
 import { Zap, MessageCircle, Shield, Heart } from 'lucide-react'
 import type { Setting } from '@/types'
 
@@ -83,13 +82,6 @@ export default function Footer({ settings }: FooterProps) {
               ))}
             </ul>
 
-            <h4 className="text-white font-semibold mt-6 mb-4 text-base">Quản trị</h4>
-            <Link
-              href="/admin/login"
-              className="text-slate-600 hover:text-slate-400 text-sm transition-colors"
-            >
-              Đăng nhập quản trị
-            </Link>
           </div>
         </div>
 

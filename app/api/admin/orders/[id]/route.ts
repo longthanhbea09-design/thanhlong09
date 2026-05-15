@@ -4,8 +4,11 @@ import { updateOrderSchema } from '@/lib/validators'
 import { securityLog } from '@/lib/securityLog'
 import { getClientIp } from '@/lib/rateLimit'
 import { sendDeliveryEmail } from '@/lib/email'
+import { guardObjectId } from '@/lib/db/real'
 
 export async function GET(_request: NextRequest, { params }: { params: { id: string } }) {
+  const guard = guardObjectId(params.id)
+  if (guard) return guard
   try {
     const order = await prisma.order.findUnique({
       where: { id: params.id },
@@ -25,6 +28,8 @@ export async function GET(_request: NextRequest, { params }: { params: { id: str
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+  const guard = guardObjectId(params.id)
+  if (guard) return guard
   try {
     const body = await request.json()
     const parsed = updateOrderSchema.safeParse(body)

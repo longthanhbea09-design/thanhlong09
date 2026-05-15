@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { writeFile, mkdir } from 'fs/promises'
 import { randomBytes } from 'crypto'
-import path from 'path'
 import { securityLog } from '@/lib/securityLog'
 import { getClientIp } from '@/lib/rateLimit'
+import { uploadBuffer } from '@/lib/cloudinary'
 
 // SVG removed — can embed arbitrary scripts (XSS risk when served inline)
 const ALLOWED_TYPES: Record<string, string> = {
@@ -43,16 +42,18 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
 
-    // Filename is fully random — never uses anything from the original name
-    const filename = `${Date.now()}-${randomBytes(8).toString('hex')}.${ext}`
+    // public_id is fully random — never uses anything from the original filename
+    const publicId = `${Date.now()}-${randomBytes(8).toString('hex')}`
 
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads')
-    await mkdir(uploadDir, { recursive: true })
-    await writeFile(path.join(uploadDir, filename), buffer)
+    const { secure_url } = await uploadBuffer(buffer, {
+      folder: 'thanhlongshop/products',
+      public_id: publicId,
+      resource_type: 'image',
+    })
 
-    securityLog('UPLOAD_SUCCESS', { ip, filename, size: file.size, mime: file.type })
+    securityLog('UPLOAD_SUCCESS', { ip, size: file.size, mime: file.type })
 
-    return NextResponse.json({ url: `/uploads/${filename}` })
+    return NextResponse.json({ success: true, url: secure_url })
   } catch (error) {
     console.error('Upload error:', error)
     return NextResponse.json({ error: 'Lỗi server khi upload' }, { status: 500 })

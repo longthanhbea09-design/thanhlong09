@@ -3,8 +3,11 @@ import { prisma } from '@/lib/prisma'
 import { productSchema } from '@/lib/validators'
 import { securityLog } from '@/lib/securityLog'
 import { getClientIp } from '@/lib/rateLimit'
+import { guardObjectId } from '@/lib/db/real'
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+  const guard = guardObjectId(params.id)
+  if (guard) return guard
   try {
     const body = await request.json()
     const parsed = productSchema.partial().safeParse(body)
@@ -30,6 +33,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 }
 
 export async function DELETE(_request: NextRequest, { params }: { params: { id: string } }) {
+  const guard = guardObjectId(params.id)
+  if (guard) return guard
   try {
     const hasOrders = await prisma.order.findFirst({ where: { productId: params.id } })
     if (hasOrders) {

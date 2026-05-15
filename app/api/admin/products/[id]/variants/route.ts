@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { guardObjectId } from '@/lib/db/real'
 
 const variantSchema = z.object({
   name: z.string().min(1),
@@ -18,6 +19,8 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const guard = guardObjectId(params.id)
+  if (guard) return guard
   try {
     const variants = await prisma.productPlan.findMany({
       where: { productId: params.id },
@@ -34,6 +37,8 @@ export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const guard = guardObjectId(params.id)
+  if (guard) return guard
   try {
     const body = await request.json()
     const parsed = variantSchema.safeParse(body)

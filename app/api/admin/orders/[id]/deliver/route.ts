@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { autoDelivery } from '@/lib/autoDelivery'
+import { guardObjectId } from '@/lib/db/real'
 
 /**
  * Admin-only: manually trigger auto-delivery for a paid order.
@@ -15,6 +16,8 @@ export async function POST(
   _request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const guard = guardObjectId(params.id)
+  if (guard) return guard
   try {
     const order = await prisma.order.findUnique({
       where: { id: params.id },
