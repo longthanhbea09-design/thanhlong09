@@ -210,6 +210,26 @@ model PaymentMethod {
   updatedAt    DateTime @updatedAt
 }
 
+model WebhookLog {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  provider   String                    // "SEPAY"
+  ip         String?
+  authHeader String?                   // "present" | "absent" — never the actual key value
+  rawBody    String                    // full JSON body
+  orderCode  String?
+  amount     Int?
+  txId       String?
+  status     String
+  // AUTH_FAILED | SKIP | ORDER_NOT_FOUND | AMOUNT_MISMATCH | DUPLICATE | PAID | ERROR
+  message    String?
+  createdAt  DateTime @default(now())
+
+  @@index([provider])
+  @@index([orderCode])
+  @@index([status])
+  @@index([createdAt])
+}
+
 // Setting dùng id string cố định "singleton" — không cần @db.ObjectId
 // vì MongoDB cho phép _id là string bất kỳ, và Setting không có relation
 model Setting {
