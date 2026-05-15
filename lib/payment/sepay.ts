@@ -31,8 +31,11 @@ export interface SePayParseResult {
   skipReason?: string
 }
 
-// TLS-YYYYMMDD-XXXX — \d+ instead of \d{4} to handle any suffix length
-const ORDER_CODE_RE = /TLS-\d{8}-\d+/i
+// MB Bank strips hyphens from transfer content, so we match both:
+//   TLS-20260516-7918  (with dashes, from QR/manual)
+//   TLS202605167918    (without dashes, as MB Bank sends to SePay)
+// Groups: (date 8 digits)(suffix digits) — used to normalize back to canonical form.
+const ORDER_CODE_RE = /TLS-?(\d{8})-?(\d+)/i
 
 /**
  * Step 1 — Auth check.
@@ -75,7 +78,8 @@ export function parseSePayPayload(payload: unknown): SePayParseResult {
     }
   }
 
-  const orderCode = match[0].toUpperCase()
+  // Normalize to canonical TLS-YYYYMMDD-XXXX format (re-inserts dashes stripped by MB Bank)
+  const orderCode = `TLS-${match[1]}-${match[2]}`.toUpperCase()
   const amount = p.transferAmount
   const transactionId = String(p.id)
 
