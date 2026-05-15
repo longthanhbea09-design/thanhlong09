@@ -29,6 +29,8 @@ export type SecurityEvent =
   | 'DELIVERY_EMAIL_RESENT'
   | 'SETTINGS_UPDATED'
   | 'UNAUTHORIZED_API_ACCESS'
+  | 'WEBHOOK_SIGNATURE_INVALID'
+  | 'PAYMENT_CONFIRMED'
 
 type LogPayload = Record<string, string | number | boolean | null | undefined>
 
@@ -53,12 +55,14 @@ const WARN_EVENTS: SecurityEvent[] = [
   'CHECKOUT_RATE_LIMITED',
   'UPLOAD_REJECTED',
   'UNAUTHORIZED_API_ACCESS',
+  'WEBHOOK_SIGNATURE_INVALID',
 ]
 
 const CRITICAL_EVENTS: SecurityEvent[] = [
   'HONEYPOT_TRIGGERED',
   'HONEYPOT_API_TRIGGERED',
   'UNAUTHORIZED_API_ACCESS',
+  'WEBHOOK_SIGNATURE_INVALID',
 ]
 
 export function securityLog(event: SecurityEvent, payload: LogPayload = {}) {

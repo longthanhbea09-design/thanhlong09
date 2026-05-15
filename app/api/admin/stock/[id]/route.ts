@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { guardObjectId } from '@/lib/db/real'
+import { encrypt } from '@/lib/security/encryption'
 
 const patchSchema = z.object({
   username: z.string().min(1).optional(),
@@ -29,11 +30,11 @@ export async function PATCH(
     const account = await prisma.accountStock.findUnique({ where: { id: params.id } })
     if (!account) return NextResponse.json({ error: 'Không tìm thấy' }, { status: 404 })
 
-    // Cannot modify a sold account's status — only username/password/extraInfo
     const data: Record<string, unknown> = {}
     if (parsed.data.username !== undefined) data.username = parsed.data.username
-    if (parsed.data.password !== undefined) data.password = parsed.data.password
-    if (parsed.data.extraInfo !== undefined) data.extraInfo = parsed.data.extraInfo
+    // Encrypt password and extraInfo before storing (if provided)
+    if (parsed.data.password !== undefined) data.password = encrypt(parsed.data.password)
+    if (parsed.data.extraInfo !== undefined) data.extraInfo = encrypt(parsed.data.extraInfo)
     if (parsed.data.status !== undefined && account.status !== 'sold') {
       data.status = parsed.data.status
     }

@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { sendDeliveryEmail } from '@/lib/email'
+import { decrypt } from '@/lib/security/encryption'
 
 type DeliveryOutcome = 'delivered' | 'out_of_stock' | 'skip' | 'error'
 
@@ -8,8 +9,11 @@ function buildDeliveryContent(acc: {
   password: string
   extraInfo: string
 }): string {
-  const lines = [`Tài khoản: ${acc.username}`, `Mật khẩu: ${acc.password}`]
-  if (acc.extraInfo) lines.push(`Ghi chú: ${acc.extraInfo}`)
+  // Decrypt password and extraInfo — handles both encrypted (new) and plaintext (legacy) values
+  const password = decrypt(acc.password)
+  const extraInfo = acc.extraInfo ? decrypt(acc.extraInfo) : ''
+  const lines = [`Tài khoản: ${acc.username}`, `Mật khẩu: ${password}`]
+  if (extraInfo) lines.push(`Ghi chú: ${extraInfo}`)
   return lines.join('\n')
 }
 
@@ -58,9 +62,10 @@ export async function autoDelivery(orderId: string): Promise<DeliveryOutcome> {
       }
 
       const now = new Date()
+      // Decrypt before building delivery content — password may be encrypted
       const deliveryContent = buildDeliveryContent(account)
 
-      // Mark account as sold — @unique orderId prevents double-assignment
+      // Mark account as sold — @unique orderId prevents double-assignment (race condition guard)
       await tx.accountStock.update({
         where: { id: account.id },
         data: { status: 'sold', orderId, soldAt: now },

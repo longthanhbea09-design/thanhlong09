@@ -4,7 +4,7 @@ import { useState, useCallback } from 'react'
 import { formatDate, formatPrice, ORDER_STATUS_MAP, CONTACT_METHOD_MAP } from '@/lib/utils'
 import { DEFAULT_DELIVERY_TEMPLATE, renderDelivery } from '@/lib/delivery'
 import StatusBadge from './StatusBadge'
-import { ChevronDown, Save, X, MessageSquare, Loader2, Eye, EyeOff, Copy, Check, ToggleLeft, ToggleRight, CheckCircle2, Mail, RefreshCw } from 'lucide-react'
+import { ChevronDown, Save, X, MessageSquare, Loader2, Eye, EyeOff, Copy, Check, ToggleLeft, ToggleRight, CheckCircle2, Mail, RefreshCw, BadgeCheck } from 'lucide-react'
 
 const PAYMENT_STATUS_MAP: Record<string, { label: string; className: string }> = {
   pending: { label: 'Chưa TT', className: 'bg-yellow-500/10 border border-yellow-500/30 text-yellow-400' },
@@ -66,6 +66,7 @@ export default function OrderTable({ orders, onRefresh }: OrderTableProps) {
   const [copiedMsg, setCopiedMsg] = useState<string | null>(null)
   const [resendingEmail, setResendingEmail] = useState<string | null>(null)
   const [localEmailStatus, setLocalEmailStatus] = useState<Record<string, string>>({})
+  const [confirmingPayment, setConfirmingPayment] = useState<string | null>(null)
 
   const fetchSettings = useCallback(async () => {
     if (settings) return
@@ -139,6 +140,16 @@ export default function OrderTable({ orders, onRefresh }: OrderTableProps) {
     navigator.clipboard.writeText(text)
     setCopiedMsg(key)
     setTimeout(() => setCopiedMsg(null), 2000)
+  }
+
+  const confirmPayment = async (order: Order) => {
+    setConfirmingPayment(order.id)
+    try {
+      await fetch(`/api/admin/orders/${order.id}/confirm-payment`, { method: 'POST' })
+      onRefresh()
+    } finally {
+      setConfirmingPayment(null)
+    }
   }
 
   const resendEmail = async (order: Order) => {
@@ -478,6 +489,29 @@ export default function OrderTable({ orders, onRefresh }: OrderTableProps) {
                       ) : (
                         <p className="text-slate-600 text-sm italic">Chưa có nội dung bàn giao</p>
                       )}
+                    </div>
+                  )}
+
+                  {/* Admin confirm payment — for manual bank/ewallet transfers */}
+                  {order.paymentStatus === 'pending' && (
+                    <div className="mt-3 pt-3 border-t border-white/5">
+                      <div className="flex items-start gap-3 p-3 rounded-xl bg-yellow-500/5 border border-yellow-500/20">
+                        <div className="flex-1">
+                          <p className="text-yellow-300 text-xs font-semibold mb-0.5">Xác nhận thanh toán thủ công</p>
+                          <p className="text-slate-500 text-xs">Chỉ bấm sau khi đã kiểm tra khách đã chuyển đủ tiền.</p>
+                        </div>
+                        <button
+                          onClick={() => confirmPayment(order)}
+                          disabled={confirmingPayment === order.id}
+                          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-yellow-500/15 border border-yellow-500/30 text-yellow-300 text-xs font-semibold hover:bg-yellow-500/25 transition-all disabled:opacity-50 shrink-0"
+                        >
+                          {confirmingPayment === order.id
+                            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            : <BadgeCheck className="w-3.5 h-3.5" />
+                          }
+                          {confirmingPayment === order.id ? 'Đang xử lý...' : 'Xác nhận đã TT'}
+                        </button>
+                      </div>
                     </div>
                   )}
 

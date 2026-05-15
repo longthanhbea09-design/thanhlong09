@@ -1,10 +1,19 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { useParams } from 'next/navigation'
-import { CheckCircle2, Clock, Copy, RefreshCw, MessageCircle, AlertCircle } from 'lucide-react'
+import { useParams, useSearchParams } from 'next/navigation'
+import {
+  CheckCircle2, Clock, Copy, RefreshCw, MessageCircle, AlertCircle,
+} from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
-import { getVietQRUrl } from '@/lib/vietqr'
+
+interface MbBankInfo {
+  bankName: string | null
+  accountNumber: string | null
+  accountName: string | null
+  paymentContent: string | null
+  qrCodeUrl: string | null
+}
 
 interface OrderData {
   orderCode: string
@@ -13,32 +22,29 @@ interface OrderData {
   planName: string
   amount: number
   paymentStatus: 'pending' | 'paid' | 'failed' | 'expired'
+  paymentProvider: string | null  // 'MOMO' | 'MB_BANK'
   paymentUrl: string | null
   qrCode: string | null
-  paymentProvider: string | null
   paidAt: string | null
   expiredAt: string | null
   status: string
-  // deliveryContent NOT returned here — phone verification required at /orders/lookup
   deliveryStatus: string
+  mbBankInfo: MbBankInfo | null
 }
 
 interface ShopSettings {
-  bankName: string
-  bankBin: string | null
-  bankAccount: string
-  bankOwner: string
-  qrCodeUrl: string | null
   zalo: string
   zaloLink: string | null
 }
 
 export default function CheckoutPage() {
   const params = useParams()
+  const searchParams = useSearchParams()
   const orderCode = params.orderCode as string
+  const accessToken = searchParams.get('token') ?? ''
 
   const [order, setOrder] = useState<OrderData | null>(null)
-  const [settings, setSettings] = useState<ShopSettings | null>(null)
+  const [shopSettings, setShopSettings] = useState<ShopSettings | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
@@ -48,8 +54,7 @@ export default function CheckoutPage() {
     try {
       const res = await fetch(`/api/orders/${orderCode}`)
       if (!res.ok) { setError('Không tìm thấy đơn hàng'); return }
-      const data = await res.json()
-      setOrder(data)
+      setOrder(await res.json())
     } catch {
       setError('Không thể tải thông tin đơn hàng')
     } finally {
@@ -61,11 +66,11 @@ export default function CheckoutPage() {
     fetchOrder()
     fetch('/api/settings', { cache: 'no-store' })
       .then((r) => r.json())
-      .then(setSettings)
+      .then(setShopSettings)
       .catch(() => {})
   }, [fetchOrder])
 
-  // Poll every 5s while pending; slow-poll while paid+delivering (waiting for auto-delivery)
+  // Poll while pending / delivering
   useEffect(() => {
     if (!order) return
     const isDone =
@@ -82,7 +87,6 @@ export default function CheckoutPage() {
     setTimeout(() => setCopied(null), 2000)
   }
 
-  // Nút "Tôi đã thanh toán" → trigger kiểm tra lại
   const handleConfirm = async () => {
     setConfirming(true)
     await fetchOrder()
@@ -110,6 +114,9 @@ export default function CheckoutPage() {
     )
   }
 
+  const zaloHref = shopSettings?.zaloLink || `https://zalo.me/${shopSettings?.zalo || ''}`
+
+  // ─── PAID ───────────────────────────────────────────────────────────────────
   if (order.paymentStatus === 'paid') {
     const isDelivered = order.deliveryStatus === 'delivered'
     const isOutOfStock = order.deliveryStatus === 'out_of_stock'
@@ -127,27 +134,32 @@ export default function CheckoutPage() {
           </p>
 
           <div className="bg-white/5 border border-white/10 rounded-2xl p-5 mb-5 text-left space-y-2">
-            <Row label="Sản phẩm" value={order.productName} />
-            <Row label="Gói" value={order.planName} />
-            <Row label="Số tiền" value={formatPrice(order.amount)} highlight />
+            <InfoRow label="Sản phẩm" value={order.productName} />
+            <InfoRow label="Gói" value={order.planName} />
+            <InfoRow label="Số tiền" value={formatPrice(order.amount)} highlight />
             {order.paidAt && (
-              <Row label="Thanh toán lúc" value={new Date(order.paidAt).toLocaleString('vi-VN')} />
+              <InfoRow label="Thanh toán lúc" value={new Date(order.paidAt).toLocaleString('vi-VN')} />
             )}
           </div>
 
-          {/* Delivery status block */}
           {isDelivered && (
             <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-4 mb-5 text-left">
               <p className="text-emerald-400 font-bold text-sm mb-1">🎉 Tài khoản đã được giao tự động!</p>
               <p className="text-slate-400 text-xs mb-3">
-                Thông tin tài khoản đã được gửi vào email của bạn. Nhập mã đơn và số điện thoại để xem tại đây:
+                Thông tin tài khoản đã gửi vào email của bạn. Bấm để xem ngay:
               </p>
-              <a
-                href="/orders/lookup"
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 font-semibold text-sm hover:bg-emerald-500/30 transition-all"
-              >
-                Xem thông tin tài khoản →
-              </a>
+              {accessToken ? (
+                <a
+                  href={`/order-success/${orderCode}?token=${accessToken}`}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 font-semibold text-sm hover:bg-emerald-500/30 transition-all"
+                >
+                  Xem thông tin tài khoản →
+                </a>
+              ) : (
+                <a href="/orders/lookup" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 font-semibold text-sm hover:bg-emerald-500/30 transition-all">
+                  Tra cứu đơn hàng →
+                </a>
+              )}
             </div>
           )}
 
@@ -155,7 +167,7 @@ export default function CheckoutPage() {
             <div className="bg-orange-500/10 border border-orange-500/20 rounded-2xl p-4 mb-5 text-left">
               <p className="text-orange-300 font-bold text-sm mb-1">⚠️ Kho tạm hết hàng</p>
               <p className="text-slate-400 text-xs">
-                Đơn đã thanh toán thành công. Shop đang bổ sung tài khoản và sẽ liên hệ giao sớm qua Zalo.
+                Đơn đã thanh toán thành công. Shop đang bổ sung và sẽ liên hệ giao qua Zalo.
               </p>
             </div>
           )}
@@ -170,13 +182,9 @@ export default function CheckoutPage() {
             </div>
           )}
 
-          <a
-            href={settings?.zaloLink || `https://zalo.me/${settings?.zalo || ''}`}
-            target="_blank" rel="noopener noreferrer"
-            className="w-full btn-primary py-4 text-base justify-center"
-          >
-            <MessageCircle className="w-5 h-5" />
-            Nhắn Zalo hỗ trợ
+          <a href={zaloHref} target="_blank" rel="noopener noreferrer"
+            className="w-full btn-primary py-4 text-base justify-center">
+            <MessageCircle className="w-5 h-5" /> Nhắn Zalo hỗ trợ
           </a>
           <a href="/orders/lookup" className="mt-3 block text-center text-slate-400 hover:text-white text-sm transition-colors">
             Tra cứu lại đơn hàng
@@ -189,106 +197,119 @@ export default function CheckoutPage() {
     )
   }
 
-  const transferContent = orderCode
+  // ─── PENDING ─────────────────────────────────────────────────────────────────
+  const isMomo = order.paymentProvider === 'MOMO'
+  const mb = order.mbBankInfo
 
   return (
     <div className="min-h-screen bg-[#050816] py-12 px-4">
       <div className="max-w-lg mx-auto">
-        {/* Header */}
         <div className="text-center mb-8">
           <a href="/" className="text-slate-400 hover:text-white text-sm mb-4 inline-block transition-colors">
             ← ThanhLongShop
           </a>
           <h1 className="text-3xl font-bold text-white">Thanh toán đơn hàng</h1>
-          <p className="text-slate-400 mt-1">Chuyển khoản để hoàn tất mua hàng</p>
+          <p className="text-slate-400 mt-1">
+            {isMomo ? 'Thanh toán qua ví MoMo' : 'Chuyển khoản ngân hàng'}
+          </p>
         </div>
 
-        {/* Order Summary */}
+        {/* Order summary */}
         <div className="glass rounded-2xl p-6 border border-white/10 mb-5">
           <p className="text-slate-400 text-sm font-medium mb-4">Chi tiết đơn hàng</p>
           <div className="space-y-3">
-            <Row label="Mã đơn hàng" value={order.orderCode} mono />
-            <Row label="Sản phẩm" value={order.productName} />
-            <Row label="Gói" value={order.planName} />
-            <div className="border-t border-white/10 pt-3 mt-3">
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400">Số tiền cần thanh toán</span>
-                <span className="gradient-text text-2xl font-extrabold">{formatPrice(order.amount)}</span>
-              </div>
+            <InfoRow label="Mã đơn hàng" value={order.orderCode} mono />
+            <InfoRow label="Sản phẩm" value={order.productName} />
+            <InfoRow label="Gói" value={order.planName} />
+            <div className="border-t border-white/10 pt-3 mt-3 flex items-center justify-between">
+              <span className="text-slate-400">Số tiền cần thanh toán</span>
+              <span className="gradient-text text-2xl font-extrabold">{formatPrice(order.amount)}</span>
             </div>
           </div>
         </div>
 
-        {/* QR & Bank Info */}
-        <div className="glass rounded-2xl p-6 border border-cyan-500/20 mb-5">
-          <p className="text-slate-400 text-sm font-medium mb-5">Thông tin chuyển khoản</p>
+        {/* ── MOMO payment block ── */}
+        {isMomo && (
+          <div className="glass rounded-2xl p-6 border border-purple-500/20 mb-5">
+            <p className="text-slate-400 text-sm font-medium mb-5">Thanh toán qua MoMo</p>
 
-          {/* QR Code — sinh động từ VietQR (bankBin + amount + orderCode) */}
-          {(() => {
-            const vietqrUrl =
-              settings?.bankBin && settings?.bankAccount
-                ? getVietQRUrl({
-                    bankBin: settings.bankBin,
-                    bankAccount: settings.bankAccount,
-                    amount: order.amount,
-                    addInfo: order.orderCode,
-                    accountName: settings.bankOwner || '',
-                  })
-                : null
-            const qrSrc = vietqrUrl || settings?.qrCodeUrl || order.qrCode
-            return qrSrc ? (
+            {/* QR Code */}
+            {order.qrCode && (
               <div className="flex justify-center mb-6">
                 <div className="bg-white p-3 rounded-2xl">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={qrSrc}
-                    alt="QR thanh toán"
-                    width={200}
-                    height={200}
-                    className="block"
-                  />
+                  <img src={order.qrCode} alt="QR MoMo" width={200} height={200} className="block" />
                 </div>
               </div>
-            ) : null
-          })()}
+            )}
 
-          {/* Bank Details — lấy từ settings DB */}
-          <div className="space-y-3">
-            <BankRow label="Ngân hàng" value={settings?.bankName || '—'} />
-            <BankRow
-              label="Số tài khoản"
-              value={settings?.bankAccount || '—'}
-              copyKey="account"
-              copied={copied}
-              onCopy={settings?.bankAccount ? () => copy(settings.bankAccount, 'account') : undefined}
-            />
-            <BankRow label="Chủ tài khoản" value={settings?.bankOwner || '—'} />
-            <BankRow
-              label="Số tiền"
-              value={formatPrice(order.amount)}
-              copyKey="amount"
-              copied={copied}
-              onCopy={() => copy(order.amount.toString(), 'amount')}
-            />
-            <BankRow
-              label="Nội dung CK"
-              value={transferContent}
-              copyKey="content"
-              copied={copied}
-              onCopy={() => copy(transferContent, 'content')}
-              highlight
-            />
+            <div className="space-y-3 mb-5">
+              <CopyRow label="Số tiền" value={formatPrice(order.amount)}
+                copyKey="momo-amount" copied={copied}
+                onCopy={() => copy(order.amount.toString(), 'momo-amount')} />
+            </div>
+
+            {order.paymentUrl && (
+              <a
+                href={order.paymentUrl}
+                className="flex items-center justify-center gap-2 w-full py-4 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold text-base hover:opacity-90 transition-all shadow-lg shadow-purple-500/20"
+              >
+                Mở ứng dụng MoMo để thanh toán →
+              </a>
+            )}
           </div>
-        </div>
+        )}
 
-        {/* Warning */}
+        {/* ── MB Bank payment block ── */}
+        {!isMomo && mb && (
+          <div className="glass rounded-2xl p-6 border border-cyan-500/20 mb-5">
+            <p className="text-slate-400 text-sm font-medium mb-5">Thông tin chuyển khoản</p>
+
+            {/* VietQR */}
+            {mb.qrCodeUrl && (
+              <div className="flex justify-center mb-6">
+                <div className="bg-white p-3 rounded-2xl">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={mb.qrCodeUrl} alt="QR chuyển khoản" width={200} height={200} className="block" />
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <CopyRow label="Ngân hàng" value={mb.bankName ?? '—'} />
+              <CopyRow label="Số tài khoản" value={mb.accountNumber ?? '—'}
+                copyKey="acc" copied={copied}
+                onCopy={mb.accountNumber ? () => copy(mb.accountNumber!, 'acc') : undefined} />
+              <CopyRow label="Chủ tài khoản" value={mb.accountName ?? '—'} />
+              <CopyRow label="Số tiền" value={formatPrice(order.amount)}
+                copyKey="amt" copied={copied}
+                onCopy={() => copy(order.amount.toString(), 'amt')} />
+              <CopyRow
+                label="Nội dung chuyển khoản"
+                value={mb.paymentContent ?? order.orderCode}
+                copyKey="content"
+                copied={copied}
+                onCopy={() => copy(mb.paymentContent ?? order.orderCode, 'content')}
+                highlight
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Warning / notice */}
         <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-2xl p-4 mb-5 flex gap-3">
           <Clock className="w-5 h-5 text-yellow-400 shrink-0 mt-0.5" />
           <div>
-            <p className="text-yellow-300 font-semibold text-sm mb-1">Nhập đúng nội dung chuyển khoản!</p>
+            <p className="text-yellow-300 font-semibold text-sm mb-1">
+              {isMomo ? 'Quét mã QR hoặc bấm mở ứng dụng MoMo' : 'Nhập đúng nội dung chuyển khoản!'}
+            </p>
             <p className="text-slate-400 text-xs leading-relaxed">
-              Nội dung chuyển khoản phải chứa mã đơn <span className="text-white font-mono font-bold">{orderCode}</span> để hệ thống tự xác nhận.
-              Đơn hàng sẽ tự động cập nhật sau khi thanh toán.
+              {isMomo
+                ? 'Đơn hàng tự động cập nhật sau khi MoMo xác nhận. Không cần bấm thêm bước nào.'
+                : <>Nội dung phải chứa mã đơn{' '}
+                    <span className="text-white font-mono font-bold">{order.orderCode}</span>{' '}
+                    để shop xác nhận.</>
+              }
             </p>
           </div>
         </div>
@@ -299,26 +320,25 @@ export default function CheckoutPage() {
             <div className="w-3 h-3 rounded-full bg-yellow-400 animate-pulse" />
             <span className="text-white font-medium">Đang chờ thanh toán...</span>
           </div>
-          <button onClick={fetchOrder} className="text-slate-400 hover:text-white transition-colors">
+          <button onClick={fetchOrder} className="text-slate-400 hover:text-white transition-colors" title="Tải lại">
             <RefreshCw className="w-4 h-4" />
           </button>
         </div>
 
-        {/* CTA */}
-        <button
-          onClick={handleConfirm}
-          disabled={confirming}
-          className="w-full btn-primary py-4 text-base justify-center mb-3 disabled:opacity-60"
-        >
-          {confirming ? <RefreshCw className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
-          {confirming ? 'Đang kiểm tra...' : 'Tôi đã chuyển khoản xong'}
-        </button>
+        {/* CTA — only show for MB Bank (MoMo is auto-confirmed via IPN) */}
+        {!isMomo && (
+          <button
+            onClick={handleConfirm}
+            disabled={confirming}
+            className="w-full btn-primary py-4 text-base justify-center mb-3 disabled:opacity-60"
+          >
+            {confirming ? <RefreshCw className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
+            {confirming ? 'Đang kiểm tra...' : 'Tôi đã chuyển khoản xong'}
+          </button>
+        )}
 
-        <a
-          href={settings?.zaloLink || `https://zalo.me/${settings?.zalo || ''}`}
-          target="_blank" rel="noopener noreferrer"
-          className="w-full btn-secondary py-4 text-base justify-center block text-center"
-        >
+        <a href={zaloHref} target="_blank" rel="noopener noreferrer"
+          className={`w-full btn-secondary py-4 text-base justify-center block text-center ${isMomo ? '' : ''}`}>
           <MessageCircle className="w-5 h-5 inline mr-2" />
           Liên hệ hỗ trợ qua Zalo
         </a>
@@ -327,7 +347,9 @@ export default function CheckoutPage() {
   )
 }
 
-function Row({ label, value, highlight, mono }: { label: string; value: string; highlight?: boolean; mono?: boolean }) {
+function InfoRow({ label, value, highlight, mono }: {
+  label: string; value: string; highlight?: boolean; mono?: boolean
+}) {
   return (
     <div className="flex items-center justify-between gap-4">
       <span className="text-slate-400 text-sm shrink-0">{label}</span>
@@ -338,15 +360,9 @@ function Row({ label, value, highlight, mono }: { label: string; value: string; 
   )
 }
 
-function BankRow({
-  label, value, copyKey, copied, onCopy, highlight,
-}: {
-  label: string
-  value: string
-  copyKey?: string
-  copied?: string | null
-  onCopy?: () => void
-  highlight?: boolean
+function CopyRow({ label, value, copyKey, copied, onCopy, highlight }: {
+  label: string; value: string; copyKey?: string;
+  copied?: string | null; onCopy?: () => void; highlight?: boolean
 }) {
   return (
     <div className="flex items-center justify-between gap-4">
@@ -360,9 +376,7 @@ function BankRow({
             <Copy className="w-3.5 h-3.5" />
           </button>
         )}
-        {copied === copyKey && (
-          <span className="text-emerald-400 text-xs">Đã copy!</span>
-        )}
+        {copied === copyKey && <span className="text-emerald-400 text-xs">Đã copy!</span>}
       </div>
     </div>
   )

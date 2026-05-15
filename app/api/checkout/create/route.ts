@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { randomBytes } from 'crypto'
 import { prisma } from '@/lib/prisma'
-import { orderSchema, modalCheckoutSchema } from '@/lib/validators'
+import { modalCheckoutSchema } from '@/lib/validators'
 import { generateOrderCode } from '@/lib/utils'
-import { getPaymentProvider } from '@/lib/payment'
 import { checkRateLimit, getClientIp, rateLimitResponse } from '@/lib/rateLimit'
 import { securityLog } from '@/lib/securityLog'
+import {
+  getPaymentSettings,
+  buildMbBankQrUrl,
+  buildMbBankPaymentContent,
+} from '@/lib/payments/payment-settings'
+import { createMomoPayment } from '@/lib/payments/momo-service'
 
 // 10 orders per hour per IP
 const CHECKOUT_LIMIT = 10
@@ -25,150 +31,128 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
     }
 
-    // Modal flow: only planId sent (no variantPrice from client)
-    if (body.planId && !body.productId) {
-      return handleModalCheckout(body)
+    // SECURITY: ignore any paymentMethod/amount/price sent by client — server decides everything
+    const parsed = modalCheckoutSchema.safeParse(body)
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Dữ liệu không hợp lệ', details: parsed.error.flatten().fieldErrors },
+        { status: 400 }
+      )
     }
 
-    return handleFormCheckout(body)
+    const { customerName, phone, email, note, planId } = parsed.data
+
+    // 1. Fetch plan + product from DB — server owns the price
+    const plan = await prisma.productPlan.findFirst({
+      where: { id: planId, isActive: true },
+      include: { product: true },
+    })
+
+    if (!plan) {
+      return NextResponse.json({ error: 'Gói không tồn tại hoặc đã ngừng bán' }, { status: 404 })
+    }
+    if (!plan.product.isActive) {
+      return NextResponse.json({ error: 'Sản phẩm này hiện không còn bán' }, { status: 400 })
+    }
+    if (!plan.available) {
+      return NextResponse.json({ error: 'Gói này tạm thời chưa có sẵn, vui lòng chọn gói khác' }, { status: 400 })
+    }
+
+    // 2. Read admin-configured payment settings — server decides which method
+    const settings = await getPaymentSettings()
+    const method = settings.activePaymentMethod // 'MOMO' | 'MB_BANK' | 'DISABLED'
+
+    if (method === 'DISABLED') {
+      return NextResponse.json(
+        { error: 'Shop đang tạm tắt thanh toán. Vui lòng quay lại sau.' },
+        { status: 503 }
+      )
+    }
+
+    // 3. Generate order identifiers
+    const orderCode = generateOrderCode()
+    const accessToken = randomBytes(32).toString('hex')
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+    const amount = plan.price
+
+    // 4. Build payment data based on active method
+    let paymentUrl: string | null = null
+    let qrCode: string | null = null
+    let paymentContent: string | null = null
+    let paymentLinkId: string | null = null
+    let expiredAt: Date | null = null
+
+    if (method === 'MOMO') {
+      // returnUrl: MoMo redirects here after payment — display only, never triggers delivery
+      const momoReturnBase =
+        settings.momoReturnUrl ||
+        process.env.MOMO_RETURN_URL ||
+        `${siteUrl}/payment/momo/return`
+      const returnUrl = `${momoReturnBase}?orderCode=${orderCode}&token=${accessToken}`
+      const result = await createMomoPayment(
+        orderCode,
+        amount,
+        `${plan.product.name} - ${plan.name}`,
+        returnUrl,
+        settings
+      )
+      paymentUrl = result.payUrl
+      qrCode = result.qrCodeUrl
+      paymentLinkId = result.requestId
+      expiredAt = new Date(Date.now() + 15 * 60 * 1000)
+    } else {
+      // MB_BANK: generate dynamic VietQR per order
+      paymentContent = buildMbBankPaymentContent(settings, orderCode)
+      qrCode = buildMbBankQrUrl(settings, amount, paymentContent)
+    }
+
+    // 5. Persist order — server sets amount and paymentProvider, client cannot influence these
+    const order = await prisma.order.create({
+      data: {
+        orderCode,
+        customerName,
+        phone,
+        email,
+        contactMethod: 'zalo',
+        productId: plan.productId,
+        planId,
+        note: note ? `[${plan.name}] ${note}` : `[${plan.name}]`,
+        status: 'new',
+        amount,
+        paymentStatus: 'pending',
+        paymentProvider: method,
+        paymentLinkId,
+        paymentUrl,
+        qrCode,
+        paymentContent,
+        accessToken,
+        expiredAt,
+      },
+    })
+
+    // 6. Return only what the client needs to display checkout
+    const response: Record<string, unknown> = {
+      success: true,
+      orderCode: order.orderCode,
+      accessToken,
+      amount,
+      paymentMethod: method,
+    }
+
+    if (method === 'MOMO') {
+      response.paymentUrl = paymentUrl
+      response.qrCode = qrCode
+    }
+    // MB_BANK: checkout page fetches order details to display bank info
+
+    return NextResponse.json(response)
   } catch (error) {
     console.error('POST /api/checkout/create error:', error)
-    return NextResponse.json({ error: 'Lỗi server, vui lòng thử lại' }, { status: 500 })
+    const message = error instanceof Error ? error.message : 'Lỗi server, vui lòng thử lại'
+    // Don't expose internal details to client
+    const clientMessage = message.startsWith('MoMo') || message.startsWith('Shop')
+      ? message
+      : 'Lỗi server, vui lòng thử lại'
+    return NextResponse.json({ error: clientMessage }, { status: 500 })
   }
-}
-
-async function handleModalCheckout(body: unknown) {
-  const parsed = modalCheckoutSchema.safeParse(body)
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: 'Dữ liệu không hợp lệ', details: parsed.error.flatten().fieldErrors },
-      { status: 400 }
-    )
-  }
-
-  const { customerName, phone, email, note, planId } = parsed.data
-
-  const plan = await prisma.productPlan.findFirst({
-    where: { id: planId, isActive: true },
-    include: { product: true },
-  })
-
-  if (!plan) {
-    return NextResponse.json({ error: 'Gói không tồn tại hoặc đã ngừng bán' }, { status: 404 })
-  }
-
-  if (!plan.product.isActive) {
-    return NextResponse.json({ error: 'Sản phẩm này hiện không còn bán' }, { status: 400 })
-  }
-
-  if (!plan.available) {
-    return NextResponse.json({ error: 'Gói này tạm thời chưa có sẵn, vui lòng chọn gói khác' }, { status: 400 })
-  }
-
-  const orderCode = generateOrderCode()
-  const paymentRef = Date.now().toString()
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
-
-  const provider = getPaymentProvider()
-  const paymentResult = await provider.createPaymentLink({
-    orderCode,
-    paymentRef,
-    amount: plan.price,
-    description: `${plan.product.name} - ${plan.name}`,
-    returnUrl: `${siteUrl}/checkout/${orderCode}`,
-    cancelUrl: `${siteUrl}/checkout/${orderCode}?cancelled=1`,
-  })
-
-  const order = await prisma.order.create({
-    data: {
-      orderCode,
-      customerName,
-      phone,
-      email,
-      contactMethod: 'zalo',
-      productId: plan.productId,
-      planId,
-      note: note ? `[${plan.name}] ${note}` : `[${plan.name}]`,
-      status: 'new',
-      amount: plan.price,
-      paymentStatus: 'pending',
-      paymentProvider: provider.name,
-      paymentLinkId: paymentResult.paymentLinkId,
-      paymentUrl: paymentResult.paymentUrl,
-      qrCode: paymentResult.qrCode,
-      paymentRef,
-      expiredAt: paymentResult.expiredAt,
-    },
-  })
-
-  return NextResponse.json({
-    success: true,
-    orderCode: order.orderCode,
-    amount: plan.price,
-    qrCode: paymentResult.qrCode,
-    paymentUrl: paymentResult.paymentUrl,
-  })
-}
-
-async function handleFormCheckout(body: unknown) {
-  const parsed = orderSchema.safeParse(body)
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: 'Dữ liệu không hợp lệ', details: parsed.error.flatten().fieldErrors },
-      { status: 400 }
-    )
-  }
-
-  const { customerName, phone, email, contactMethod, productId, planId, note } = parsed.data
-
-  const plan = await prisma.productPlan.findFirst({
-    where: { id: planId, productId, isActive: true },
-    include: { product: true },
-  })
-
-  if (!plan) {
-    return NextResponse.json({ error: 'Sản phẩm hoặc gói không tồn tại' }, { status: 404 })
-  }
-
-  const orderCode = generateOrderCode()
-  const paymentRef = Date.now().toString()
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
-
-  const provider = getPaymentProvider()
-  const paymentResult = await provider.createPaymentLink({
-    orderCode,
-    paymentRef,
-    amount: plan.price,
-    description: `${plan.product.name} - ${plan.name}`,
-    returnUrl: `${siteUrl}/checkout/${orderCode}`,
-    cancelUrl: `${siteUrl}/checkout/${orderCode}?cancelled=1`,
-  })
-
-  const order = await prisma.order.create({
-    data: {
-      orderCode,
-      customerName,
-      phone,
-      email: email || null,
-      contactMethod,
-      productId,
-      planId,
-      note: note || null,
-      status: 'new',
-      amount: plan.price,
-      paymentStatus: 'pending',
-      paymentProvider: provider.name,
-      paymentLinkId: paymentResult.paymentLinkId,
-      paymentUrl: paymentResult.paymentUrl,
-      qrCode: paymentResult.qrCode,
-      paymentRef,
-      expiredAt: paymentResult.expiredAt,
-    },
-  })
-
-  return NextResponse.json({
-    success: true,
-    orderCode: order.orderCode,
-    paymentUrl: paymentResult.paymentUrl,
-  })
 }

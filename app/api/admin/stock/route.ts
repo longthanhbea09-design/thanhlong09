@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { encrypt, decrypt } from '@/lib/security/encryption'
 
 const bulkImportSchema = z.object({
   productId: z.string().min(1),
@@ -20,21 +21,19 @@ function parseLine(raw: string): { username: string; password: string; extraInfo
   if (!line || line.startsWith('#')) return null
 
   const firstPipe = line.indexOf('|')
-  if (firstPipe === -1) return null // no separator at all
+  if (firstPipe === -1) return null
 
   const username = line.slice(0, firstPipe).trim()
   const afterUsername = line.slice(firstPipe + 1)
 
   const secondPipe = afterUsername.indexOf('|')
   if (secondPipe === -1) {
-    // Only one "|" → username|password, no extraInfo
     const password = afterUsername.trim()
     if (!username || !password) return null
     return { username, password, extraInfo: '' }
   }
 
   const password = afterUsername.slice(0, secondPipe).trim()
-  // Everything after the second "|" is extraInfo — may contain further "|"
   const extraInfo = afterUsername.slice(secondPipe + 1).trim()
 
   if (!username || !password) return null
@@ -71,7 +70,14 @@ export async function GET(request: NextRequest) {
       prisma.accountStock.count({ where }),
     ])
 
-    return NextResponse.json({ items, total, page, limit })
+    // Decrypt password and extraInfo before returning to admin
+    const decryptedItems = items.map(item => ({
+      ...item,
+      password: decrypt(item.password),
+      extraInfo: item.extraInfo ? decrypt(item.extraInfo) : item.extraInfo,
+    }))
+
+    return NextResponse.json({ items: decryptedItems, total, page, limit })
   } catch (error) {
     console.error('GET /api/admin/stock error:', error)
     return NextResponse.json({ error: 'Lỗi server' }, { status: 500 })
@@ -110,16 +116,14 @@ export async function POST(request: NextRequest) {
     })
     const existingUsernames = new Set(existingRows.map((r) => r.username.toLowerCase()))
 
-    // Parse every line; track errors per line
     const errors: { line: number; raw: string; reason: string }[] = []
     const valid: { username: string; password: string; extraInfo: string }[] = []
-    const seenInBatch = new Set<string>() // detect duplicates within this import
+    const seenInBatch = new Set<string>()
 
     lines.forEach((raw, idx) => {
       const lineNum = idx + 1
       const trimmed = raw.trim()
 
-      // Skip blank lines and comments silently
       if (!trimmed || trimmed.startsWith('#')) return
 
       const parsed = parseLine(trimmed)
@@ -154,7 +158,6 @@ export async function POST(request: NextRequest) {
       valid.push({ username, password, extraInfo })
     })
 
-    // Insert valid rows one by one so a single DB error doesn't abort the whole batch
     let importedCount = 0
     for (const row of valid) {
       try {
@@ -163,8 +166,8 @@ export async function POST(request: NextRequest) {
             productId,
             planId,
             username: row.username,
-            password: row.password,
-            extraInfo: row.extraInfo,
+            password: encrypt(row.password),     // encrypt before storing
+            extraInfo: encrypt(row.extraInfo),   // encrypt extraInfo too
             status: 'available',
           },
         })

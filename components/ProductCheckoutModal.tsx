@@ -18,6 +18,7 @@ interface Props {
 
 interface OrderData {
   orderCode: string
+  accessToken: string
   qrCode: string
   paymentUrl: string
   amount: number
@@ -128,6 +129,7 @@ export default function ProductCheckoutModal({ product, settings, onClose }: Pro
 
       setOrderData({
         orderCode: json.orderCode,
+        accessToken: json.accessToken || '',
         qrCode: json.qrCode || '',
         paymentUrl: json.paymentUrl || '',
         amount: json.amount ?? selectedVariant.price,
@@ -405,22 +407,27 @@ export default function ProductCheckoutModal({ product, settings, onClose }: Pro
         {step === 3 && orderData && (
           <div className="p-5">
             {paymentStatus === 'paid' ? (
-              <div className="text-center py-10">
+              <div className="text-center py-8">
                 <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-emerald-500/20 flex items-center justify-center">
                   <CheckCircle className="w-10 h-10 text-emerald-400" />
                 </div>
                 <h3 className="text-white font-bold text-xl mb-2">Thanh toán thành công!</h3>
                 <p className="text-slate-400 text-sm mb-1">
-                  Mã đơn hàng:{' '}
+                  Mã đơn:{' '}
                   <span className="text-cyan-400 font-mono font-semibold">{orderData.orderCode}</span>
                 </p>
-                <p className="text-slate-400 text-sm mb-7">
-                  Chúng tôi sẽ liên hệ bạn trong vòng{' '}
-                  <span className="text-cyan-400 font-semibold">5 phút</span> qua Zalo/điện thoại.
+                <p className="text-slate-400 text-sm mb-6">
+                  Hệ thống đang giao tài khoản tự động.
                 </p>
+                <a
+                  href={`/order-success/${orderData.orderCode}?token=${orderData.accessToken}`}
+                  className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 text-white font-semibold text-sm active:scale-95 transition-transform mb-3"
+                >
+                  Xem thông tin tài khoản →
+                </a>
                 <button
                   onClick={onClose}
-                  className="px-8 py-3.5 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 text-white font-semibold active:scale-95 transition-transform"
+                  className="text-slate-400 hover:text-white text-sm transition-colors"
                 >
                   Đóng
                 </button>

@@ -11,6 +11,7 @@ import {
   Zap,
   ChevronRight,
   Archive,
+  CreditCard,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -19,6 +20,7 @@ const navItems = [
   { href: '/admin/orders', icon: ShoppingBag, label: 'Đơn hàng' },
   { href: '/admin/products', icon: Package, label: 'Sản phẩm' },
   { href: '/admin/stock', icon: Archive, label: 'Kho tài khoản' },
+  { href: '/admin/payment-settings', icon: CreditCard, label: 'Thanh toán' },
   { href: '/admin/settings', icon: Settings, label: 'Cài đặt' },
 ]
 

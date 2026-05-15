@@ -65,16 +65,39 @@ export const settingSchema = z.object({
   telegramLink: z.string().nullable().optional(),
   hotline: z.string().nullable().optional(),
   supportEmail: z.string().email('Email không hợp lệ'),
-  bankName: z.string().default(''),
-  bankBin: z.string().nullable().optional(),
-  bankAccount: z.string().default(''),
-  bankOwner: z.string().default(''),
-  qrCodeUrl: z.string().nullable().optional(),
   maintenanceMode: z.boolean().default(false),
   maintenanceTitle: z.string().nullable().optional(),
   maintenanceMessage: z.string().nullable().optional(),
   deliveryTemplate: z.string().nullable().optional(),
 })
+
+export const EWALLET_PROVIDERS = ['MOMO', 'ZALOPAY', 'VIETTELMONEY', 'SHOPEEPAY', 'OTHER'] as const
+export type EwalletProvider = (typeof EWALLET_PROVIDERS)[number]
+
+export const EWALLET_PROVIDER_LABELS: Record<EwalletProvider, string> = {
+  MOMO: 'MoMo',
+  ZALOPAY: 'ZaloPay',
+  VIETTELMONEY: 'Viettel Money',
+  SHOPEEPAY: 'ShopeePay',
+  OTHER: 'Khác',
+}
+
+export const paymentMethodSchema = z.object({
+  type: z.enum(['BANK', 'EWALLET']),
+  provider: z.string().min(1, 'Chọn loại ví'),
+  name: z.string().min(1, 'Tên ví không được trống').max(100),
+  accountNo: z.string().max(50).nullable().optional(),
+  accountName: z.string().max(100).nullable().optional(),
+  phone: z.string().max(20).nullable().optional(),
+  qrImage: z.string().nullable().optional(),
+  paymentUrl: z.string().nullable().optional(),
+  transferNote: z.string().max(500).nullable().optional(),
+  note: z.string().max(500).nullable().optional(),
+  enabled: z.boolean().default(true),
+  sortOrder: z.number().int().default(0),
+})
+
+export type PaymentMethodData = z.infer<typeof paymentMethodSchema>
 
 export type OrderFormData = z.infer<typeof orderSchema>
 export type ModalCheckoutData = z.infer<typeof modalCheckoutSchema>

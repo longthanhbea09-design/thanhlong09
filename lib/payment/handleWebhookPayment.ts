@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { autoDelivery } from '@/lib/autoDelivery'
+import { getPaymentSettings } from '@/lib/payments/payment-settings'
 
 interface ProcessPaymentParams {
   orderCode: string
@@ -81,8 +82,11 @@ export async function processPaymentWebhook({
     }),
   ])
 
-  // Auto-deliver account from stock (idempotent — safe if webhook fires twice)
-  await autoDelivery(order.id)
+  // Auto-deliver only if enabled in payment settings
+  const paymentSettings = await getPaymentSettings()
+  if (paymentSettings.autoDeliverAfterPaid) {
+    await autoDelivery(order.id)
+  }
 
   return { ok: true, message: 'Payment confirmed' }
 }

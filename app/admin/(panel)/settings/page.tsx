@@ -1,12 +1,11 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { settingSchema, type SettingData } from '@/lib/validators'
 import AdminHeader from '@/components/admin/AdminHeader'
-import { VIET_BANKS } from '@/lib/vietqr'
-import { Save, Loader2, CheckCircle2, Upload, Image as ImageIcon, X, ToggleLeft, ToggleRight, RotateCcw } from 'lucide-react'
+import { Save, Loader2, CheckCircle2, ToggleLeft, ToggleRight, RotateCcw } from 'lucide-react'
 import { DEFAULT_DELIVERY_TEMPLATE } from '@/lib/delivery'
 import PasskeyManager from '@/components/admin/PasskeyManager'
 
@@ -15,9 +14,6 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [uploadingQr, setUploadingQr] = useState(false)
-  const qrFileRef = useRef<HTMLInputElement>(null)
-
   const {
     register,
     handleSubmit,
@@ -31,7 +27,6 @@ export default function SettingsPage() {
   })
 
   const maintenanceMode = watch('maintenanceMode')
-  const qrCodeUrl = watch('qrCodeUrl')
 
   useEffect(() => {
     fetch('/api/admin/settings')
@@ -39,28 +34,6 @@ export default function SettingsPage() {
       .then((data) => { if (data) reset({ ...data, maintenanceMode: data.maintenanceMode ?? false }) })
       .finally(() => setLoading(false))
   }, [reset])
-
-  const handleQrUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setUploadingQr(true)
-    try {
-      const fd = new FormData()
-      fd.append('file', file)
-      const res = await fetch('/api/admin/upload', { method: 'POST', body: fd })
-      const json = await res.json()
-      if (res.ok) {
-        setValue('qrCodeUrl', json.url, { shouldValidate: true })
-      } else {
-        setError(json.error || 'Lỗi upload ảnh QR')
-      }
-    } catch {
-      setError('Không thể upload ảnh QR')
-    } finally {
-      setUploadingQr(false)
-      if (qrFileRef.current) qrFileRef.current.value = ''
-    }
-  }
 
   const onSubmit = async (data: SettingData) => {
     setSaving(true)
@@ -158,95 +131,7 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              {/* 3. Banking */}
-              <div className="glass rounded-2xl border border-white/10 p-6 space-y-4">
-                <h3 className="text-white font-bold text-base border-b border-white/10 pb-3">
-                  Thông tin ngân hàng & QR
-                </h3>
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className={lbl}>Tên ngân hàng</label>
-                    <input {...register('bankName')} className={inp} placeholder="MB Bank" />
-                  </div>
-                  <div>
-                    <label className={lbl}>Mã ngân hàng VietQR (BIN)</label>
-                    <select
-                      {...register('bankBin')}
-                      className={`${inp} cursor-pointer`}
-                    >
-                      <option value="" className="bg-[#0f172a]">— Chọn ngân hàng —</option>
-                      {VIET_BANKS.map((b) => (
-                        <option key={b.bin} value={b.bin} className="bg-[#0f172a]">
-                          {b.name} ({b.bin})
-                        </option>
-                      ))}
-                    </select>
-                    <p className="text-slate-500 text-xs mt-1">
-                      Chọn đúng ngân hàng để sinh QR tự động theo từng đơn hàng
-                    </p>
-                  </div>
-                  <div>
-                    <label className={lbl}>Số tài khoản</label>
-                    <input {...register('bankAccount')} className={inp} placeholder="1234567890" />
-                  </div>
-                  <div>
-                    <label className={lbl}>Chủ tài khoản</label>
-                    <input {...register('bankOwner')} className={inp} placeholder="NGUYEN THANH LONG" />
-                  </div>
-                </div>
-
-                {/* QR Upload */}
-                <div>
-                  <label className={lbl}>Ảnh QR thanh toán</label>
-                  <div className="flex gap-2">
-                    <input
-                      {...register('qrCodeUrl')}
-                      placeholder="/uploads/... hoặc https://..."
-                      className={`${inp} flex-1`}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => qrFileRef.current?.click()}
-                      disabled={uploadingQr}
-                      className="flex items-center gap-2 px-4 py-3 rounded-xl border border-white/20 text-slate-300 hover:text-white hover:border-white/40 hover:bg-white/5 transition-all text-sm shrink-0 disabled:opacity-50"
-                    >
-                      {uploadingQr ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                      {uploadingQr ? 'Đang upload...' : 'Upload'}
-                    </button>
-                    <input
-                      ref={qrFileRef}
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp,image/svg+xml,image/gif"
-                      className="hidden"
-                      onChange={handleQrUpload}
-                    />
-                  </div>
-
-                  {/* QR Preview */}
-                  {qrCodeUrl ? (
-                    <div className="mt-3 relative inline-block">
-                      <div className="w-32 h-32 rounded-xl border border-white/10 overflow-hidden bg-white flex items-center justify-center">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={qrCodeUrl} alt="QR Code preview" className="w-full h-full object-contain" />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setValue('qrCodeUrl', '')}
-                        className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-400 transition-colors"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="mt-2 flex items-center gap-2 text-slate-600 text-xs">
-                      <ImageIcon className="w-3.5 h-3.5" />
-                      Chưa có ảnh QR — tải lên hoặc nhập URL
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* 4. Delivery template */}
+              {/* 3. Delivery template */}
               <div className="glass rounded-2xl border border-white/10 p-6 space-y-4">
                 <div className="flex items-center justify-between border-b border-white/10 pb-3">
                   <h3 className="text-white font-bold text-base">Mẫu nội dung bàn giao</h3>
@@ -281,7 +166,7 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              {/* 5. Maintenance */}
+              {/* 4. Maintenance */}
               <div className="glass rounded-2xl border border-white/10 p-6 space-y-4">
                 <h3 className="text-white font-bold text-base border-b border-white/10 pb-3">
                   Chế độ bảo trì

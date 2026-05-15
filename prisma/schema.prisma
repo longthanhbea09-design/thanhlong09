@@ -78,6 +78,9 @@ model Order {
   transactionId   String?
   paidAt          DateTime?
   expiredAt       DateTime?
+  accessToken     String?              // random 64-hex token for /order-success access
+  paymentMethodId String?              // ID of PaymentMethod selected by customer
+  paymentContent  String?              // Transfer content stored at order creation (e.g. "THANHLONG ORD20260515")
   deliveryStatus  String               @default("waiting_payment")
   deliveryContent String?
   deliveryVisible Boolean              @default(false)
@@ -151,6 +154,57 @@ model SecurityLog {
   @@index([event])
   @@index([createdAt])
   @@index([ip])
+}
+
+// Singleton — id fixed to "main" (same pattern as Setting)
+model PaymentSettings {
+  id                         String   @id @map("_id") @default("main")
+  activePaymentMethod        String   @default("MB_BANK")
+  // Valid values: "MOMO" | "MB_BANK" | "DISABLED"
+
+  momoEnabled                Boolean  @default(false)
+  momoMode                   String   @default("sandbox")
+  momoPartnerCode            String?
+  momoAccessKey              String?
+  momoSecretKeyEncrypted     String?  // AES-256-GCM encrypted — never returned to client
+  momoEndpoint               String?
+  momoReturnUrl              String?
+  momoIpnUrl                 String?
+
+  mbBankEnabled              Boolean  @default(true)
+  mbBankName                 String   @default("MB Bank")
+  mbBankBin                  String?
+  mbBankAccountNumber        String?
+  mbBankAccountName          String?
+  mbBankPaymentContentPrefix String   @default("THANHLONG")
+  mbBankQrProvider           String   @default("vietqr")
+  mbBankAutoConfirmEnabled   Boolean  @default(false)
+  sePayApiKeyEncrypted       String?  // AES-256-GCM encrypted SePay webhook API key
+  sePayWebhookUrl            String?  // custom webhook URL; null = use NEXT_PUBLIC_SITE_URL
+
+  autoDeliverAfterPaid       Boolean  @default(true)
+  allowManualConfirm         Boolean  @default(true)
+
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
+}
+
+model PaymentMethod {
+  id           String   @id @default(cuid()) @map("_id")
+  type         String   // BANK | EWALLET
+  provider     String   // MOMO | ZALOPAY | VIETTELMONEY | SHOPEEPAY | OTHER
+  name         String
+  accountNo    String?
+  accountName  String?
+  phone        String?
+  qrImage      String?
+  paymentUrl   String?
+  transferNote String?  // Template, supports {{orderCode}}
+  note         String?
+  enabled      Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 // Setting dùng id string cố định "singleton" — không cần @db.ObjectId
