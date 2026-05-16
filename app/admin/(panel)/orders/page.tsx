@@ -4,17 +4,16 @@ import { useEffect, useState, useCallback } from 'react'
 import AdminHeader from '@/components/admin/AdminHeader'
 import OrderTable from '@/components/admin/OrderTable'
 import { Search, RefreshCw } from 'lucide-react'
-import { ORDER_STATUS_MAP } from '@/lib/utils'
 
 const STATUS_FILTERS = [
-  { value: 'all', label: 'Tất cả' },
-  { value: 'unpaid', label: 'Chưa thanh toán' },
-  { value: 'paid', label: 'Đã thanh toán' },
-  { value: 'completed', label: 'Đã hoàn thành' },
-  { value: 'cancelled', label: 'Đã hủy' },
-  ...Object.entries(ORDER_STATUS_MAP)
-    .filter(([v]) => !['completed', 'cancelled'].includes(v))
-    .map(([value, { label }]) => ({ value, label })),
+  { value: 'all',        label: 'Tất cả' },
+  { value: 'unpaid',     label: 'Chưa thanh toán' },
+  { value: 'paid',       label: 'Đã thanh toán' },
+  { value: 'processing', label: 'Đang xử lý' },
+  { value: 'completed',  label: 'Hoàn thành' },
+  { value: 'cancelled',  label: 'Đã hủy' },
+  { value: 'new',        label: 'Mới' },
+  { value: 'contacting', label: 'Đang liên hệ' },
 ]
 
 export default function OrdersPage() {
