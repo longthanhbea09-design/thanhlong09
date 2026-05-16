@@ -52,22 +52,29 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   const guard = guardObjectId(params.id)
   if (guard) return guard
   try {
+    const force = new URL(request.url).searchParams.get('force') === 'true'
+
     const account = await prisma.accountStock.findUnique({ where: { id: params.id } })
     if (!account) return NextResponse.json({ error: 'Không tìm thấy' }, { status: 404 })
 
     if (account.status === 'sold') {
-      // Soft-disable instead of delete — preserve audit trail
-      await prisma.accountStock.update({
-        where: { id: params.id },
-        data: { status: 'disabled' },
-      })
-      return NextResponse.json({ message: 'Đã ẩn tài khoản (đã bán, không thể xóa)' })
+      if (!force) {
+        return NextResponse.json(
+          { error: 'Tài khoản đã bán. Dùng force=true để xóa bản ghi này (chỉ dùng cho test/nhập lại kho). Thông tin bàn giao của đơn hàng liên quan không bị ảnh hưởng.' },
+          { status: 409 }
+        )
+      }
+      // force=true: delete the sold record
+      // Order.deliveryContent is stored independently on the Order model and is unaffected
+      await prisma.accountStock.delete({ where: { id: params.id } })
+      console.log(`[stock] Admin force-deleted sold account id=${params.id} username=${account.username}`)
+      return NextResponse.json({ message: 'Đã xóa bản ghi tài khoản đã bán. Thông tin bàn giao của đơn hàng không bị ảnh hưởng.' })
     }
 
     await prisma.accountStock.delete({ where: { id: params.id } })

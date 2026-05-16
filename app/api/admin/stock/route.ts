@@ -9,6 +9,8 @@ const bulkImportSchema = z.object({
   // Each line: "username|password" or "username|password|extraInfo"
   // extraInfo may contain "|" — only the first two "|" are delimiters
   lines: z.array(z.string()).min(1).max(500),
+  // When true: delete any sold records that conflict with lines and re-import them
+  overwriteSold: z.boolean().optional().default(false),
 })
 
 /**
@@ -95,7 +97,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { productId, planId, lines } = schema.data
+    const { productId, planId, lines, overwriteSold } = schema.data
 
     // Verify product+plan exist and belong together
     const plan = await prisma.productPlan.findFirst({
@@ -109,14 +111,19 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Collect usernames already in DB for this product+plan (for duplicate detection)
+    // Collect existing records for this product+plan — include status for conflict classification
     const existingRows = await prisma.accountStock.findMany({
       where: { productId, planId },
-      select: { username: true },
+      select: { id: true, username: true, status: true },
     })
-    const existingUsernames = new Set(existingRows.map((r) => r.username.toLowerCase()))
+    // Map: lowercased username → { id, status }
+    const existingMap = new Map(
+      existingRows.map((r) => [r.username.toLowerCase(), { id: r.id, status: r.status }])
+    )
 
     const errors: { line: number; raw: string; reason: string }[] = []
+    // Sold conflicts that can be overwritten — returned to frontend when overwriteSold=false
+    const soldConflicts: { id: string; username: string; line: number; raw: string }[] = []
     const valid: { username: string; password: string; extraInfo: string }[] = []
     const seenInBatch = new Set<string>()
 
@@ -149,25 +156,55 @@ export async function POST(request: NextRequest) {
         errors.push({ line: lineNum, raw: trimmed, reason: `Trùng username trong lần import này: ${username}` })
         return
       }
-      if (existingUsernames.has(key)) {
-        errors.push({ line: lineNum, raw: trimmed, reason: `Username đã tồn tại trong kho: ${username}` })
-        return
+
+      const existing = existingMap.get(key)
+      if (existing) {
+        if (existing.status !== 'sold') {
+          // Conflict with available/disabled record — always block
+          errors.push({ line: lineNum, raw: trimmed, reason: `Tài khoản đã tồn tại trong kho (${existing.status}): ${username}` })
+          return
+        }
+        // Conflict with sold record
+        if (!overwriteSold) {
+          soldConflicts.push({ id: existing.id, username, line: lineNum, raw: trimmed })
+          return
+        }
+        // overwriteSold=true: will delete the sold record before inserting
       }
 
       seenInBatch.add(key)
       valid.push({ username, password, extraInfo })
     })
 
+    // If there are sold conflicts and admin hasn't confirmed overwrite yet, return early
+    if (soldConflicts.length > 0 && !overwriteSold) {
+      return NextResponse.json({
+        success: true,
+        imported: 0,
+        skipped: soldConflicts.length + errors.length,
+        errors,
+        soldConflicts,
+        requiresConfirm: true,
+      }, { status: 200 })
+    }
+
     let importedCount = 0
     for (const row of valid) {
       try {
+        // If overwriteSold: delete the existing sold record first
+        const existing = existingMap.get(row.username.toLowerCase())
+        if (existing?.status === 'sold') {
+          await prisma.accountStock.delete({ where: { id: existing.id } })
+          console.log(`[stock import] overwriteSold: deleted sold record id=${existing.id} username=${row.username}`)
+        }
+
         await prisma.accountStock.create({
           data: {
             productId,
             planId,
             username: row.username,
-            password: encrypt(row.password),     // encrypt before storing
-            extraInfo: encrypt(row.extraInfo),   // encrypt extraInfo too
+            password: encrypt(row.password),
+            extraInfo: encrypt(row.extraInfo),
             status: 'available',
           },
         })
@@ -181,7 +218,7 @@ export async function POST(request: NextRequest) {
 
     console.log(
       `[stock import] product=${plan.product.name} plan=${plan.name} ` +
-      `imported=${importedCount} skipped=${errors.length}`
+      `imported=${importedCount} skipped=${errors.length} soldOverwritten=${overwriteSold ? valid.filter(r => existingMap.get(r.username.toLowerCase())?.status === 'sold').length : 0}`
     )
 
     return NextResponse.json(
@@ -190,6 +227,8 @@ export async function POST(request: NextRequest) {
         imported: importedCount,
         skipped: errors.length,
         errors,
+        soldConflicts: [],
+        requiresConfirm: false,
       },
       { status: importedCount > 0 ? 201 : 400 }
     )

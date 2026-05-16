@@ -5,7 +5,7 @@ import AdminHeader from '@/components/admin/AdminHeader'
 import { formatPrice } from '@/lib/utils'
 import {
   Plus, Upload, Package, Trash2, Eye, EyeOff, RefreshCw,
-  ChevronDown, ChevronUp, AlertTriangle, CheckCircle2, XCircle,
+  ChevronDown, ChevronUp, AlertTriangle, CheckCircle2,
 } from 'lucide-react'
 
 // ── Types ──────────────────────────────────────────────────────────────
@@ -74,6 +74,8 @@ export default function StockPage() {
   const [importText, setImportText] = useState('')
   const [importing, setImporting] = useState(false)
   const [importResult, setImportResult] = useState<string | null>(null)
+  // Sold conflicts — returned by API when overwriteSold=false
+  const [soldConflicts, setSoldConflicts] = useState<{ id: string; username: string; line: number; raw: string }[]>([])
 
   const fetchStats = useCallback(async () => {
     setLoadingStats(true)
@@ -132,22 +134,32 @@ export default function StockPage() {
 
   const [importErrors, setImportErrors] = useState<{ line: number; raw: string; reason: string }[]>([])
 
-  const handleImport = async () => {
+  const doImport = async (overwriteSold: boolean) => {
     if (!importProduct || !importPlan || !importText.trim()) return
     setImporting(true)
     setImportResult(null)
     setImportErrors([])
+    setSoldConflicts([])
     try {
-      // Preserve all lines including those with special chars; filter only truly empty ones
       const lines = importText.split('\n').filter((l) => l.trim().length > 0)
       const res = await fetch('/api/admin/stock', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productId: importProduct, planId: importPlan, lines }),
+        body: JSON.stringify({ productId: importProduct, planId: importPlan, lines, overwriteSold }),
       })
       const data = await res.json()
 
       if (data.success) {
+        // API needs confirm for sold conflicts — show them without clearing the form
+        if (data.requiresConfirm && data.soldConflicts?.length > 0) {
+          setSoldConflicts(data.soldConflicts)
+          const newMsg = data.imported > 0 ? `✅ Đã nạp ${data.imported} tài khoản mới.` : null
+          setImportResult(newMsg)
+          if (data.errors?.length > 0) setImportErrors(data.errors)
+          if (data.imported > 0) { fetchStats(); fetchAccounts() }
+          return
+        }
+
         const skippedMsg = data.skipped > 0 ? ` — ${data.skipped} dòng bỏ qua` : ''
         setImportResult(`✅ Đã nạp ${data.imported} tài khoản vào kho${skippedMsg}`)
         if (data.imported > 0) {
@@ -166,6 +178,9 @@ export default function StockPage() {
     }
   }
 
+  const handleImport = () => doImport(false)
+  const handleOverwriteSold = () => doImport(true)
+
   const toggleStatus = async (id: string, current: string) => {
     const next = current === 'available' ? 'disabled' : 'available'
     await fetch(`/api/admin/stock/${id}`, {
@@ -177,9 +192,13 @@ export default function StockPage() {
     fetchStats()
   }
 
-  const deleteAccount = async (id: string) => {
-    if (!confirm('Xóa tài khoản này khỏi kho?')) return
-    await fetch(`/api/admin/stock/${id}`, { method: 'DELETE' })
+  const deleteAccount = async (id: string, isSold = false) => {
+    const msg = isSold
+      ? 'Bạn chắc chắn muốn xóa bản ghi tài khoản đã bán này? Việc này chỉ dùng cho test hoặc nhập lại kho. Thông tin bàn giao của đơn hàng liên quan không bị ảnh hưởng.'
+      : 'Xóa tài khoản này khỏi kho?'
+    if (!confirm(msg)) return
+    const url = isSold ? `/api/admin/stock/${id}?force=true` : `/api/admin/stock/${id}`
+    await fetch(url, { method: 'DELETE' })
     fetchAccounts()
     fetchStats()
   }
@@ -322,6 +341,47 @@ export default function StockPage() {
                   </p>
                 )}
 
+                {/* Sold conflicts — ask admin what to do */}
+                {soldConflicts.length > 0 && (
+                  <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 space-y-3">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-amber-300 text-sm font-semibold">
+                          {soldConflicts.length} tài khoản trùng với bản ghi đã bán
+                        </p>
+                        <p className="text-amber-400/80 text-xs mt-1">
+                          Bạn có muốn xóa các bản ghi đã bán này để nhập lại vào kho không?
+                          Thông tin bàn giao của đơn hàng liên quan sẽ không bị ảnh hưởng.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="space-y-1 pl-6">
+                      {soldConflicts.map((c, i) => (
+                        <p key={i} className="text-xs font-mono text-slate-400">
+                          <span className="text-slate-500">Dòng {c.line}:</span> {c.username}
+                        </p>
+                      ))}
+                    </div>
+                    <div className="flex gap-2 pl-6">
+                      <button
+                        onClick={handleOverwriteSold}
+                        disabled={importing}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-medium hover:bg-amber-500/30 transition-all disabled:opacity-50"
+                      >
+                        {importing ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                        Xóa bản ghi đã bán và nhập lại
+                      </button>
+                      <button
+                        onClick={() => setSoldConflicts([])}
+                        className="px-3 py-1.5 rounded-lg border border-white/10 text-slate-400 text-xs hover:text-white transition-all"
+                      >
+                        Bỏ qua
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {importErrors.length > 0 && (
                   <div className="rounded-xl border border-orange-500/20 bg-orange-500/5 p-3 space-y-1">
                     <p className="text-orange-400 text-xs font-semibold mb-2">
@@ -435,35 +495,42 @@ export default function StockPage() {
                           )}
                         </div>
 
-                        {/* Actions — only for non-sold accounts */}
-                        {acc.status !== 'sold' && (
-                          <div className="flex items-center gap-1 shrink-0">
+                        {/* Actions */}
+                        <div className="flex items-center gap-1 shrink-0">
+                          {acc.status !== 'sold' && (
+                            <>
+                              <button
+                                onClick={() => toggleStatus(acc.id, acc.status)}
+                                className={`p-2 rounded-lg transition-all ${
+                                  acc.status === 'available'
+                                    ? 'text-emerald-400 hover:bg-emerald-500/10'
+                                    : 'text-slate-500 hover:bg-white/10'
+                                }`}
+                                title={acc.status === 'available' ? 'Ẩn khỏi kho' : 'Kích hoạt lại'}
+                              >
+                                {acc.status === 'available'
+                                  ? <Eye className="w-4 h-4" />
+                                  : <EyeOff className="w-4 h-4" />}
+                              </button>
+                              <button
+                                onClick={() => deleteAccount(acc.id, false)}
+                                className="p-2 rounded-lg text-red-400 hover:bg-red-500/10 transition-all"
+                                title="Xóa"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </>
+                          )}
+                          {acc.status === 'sold' && (
                             <button
-                              onClick={() => toggleStatus(acc.id, acc.status)}
-                              className={`p-2 rounded-lg transition-all ${
-                                acc.status === 'available'
-                                  ? 'text-emerald-400 hover:bg-emerald-500/10'
-                                  : 'text-slate-500 hover:bg-white/10'
-                              }`}
-                              title={acc.status === 'available' ? 'Ẩn khỏi kho' : 'Kích hoạt lại'}
-                            >
-                              {acc.status === 'available'
-                                ? <Eye className="w-4 h-4" />
-                                : <EyeOff className="w-4 h-4" />}
-                            </button>
-                            <button
-                              onClick={() => deleteAccount(acc.id)}
-                              className="p-2 rounded-lg text-red-400 hover:bg-red-500/10 transition-all"
-                              title="Xóa"
+                              onClick={() => deleteAccount(acc.id, true)}
+                              className="p-2 rounded-lg text-slate-600 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                              title="Xóa bản ghi đã bán (chỉ dùng để nhập lại/test)"
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
-                          </div>
-                        )}
-
-                        {acc.status === 'sold' && (
-                          <XCircle className="w-4 h-4 text-slate-600 shrink-0" />
-                        )}
+                          )}
+                        </div>
                       </div>
                     )
                   })}
