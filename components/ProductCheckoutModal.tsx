@@ -39,6 +39,10 @@ interface CustomerInfo {
 
 const STEPS = ['Chọn gói', 'Thông tin', 'Thanh toán']
 
+const footerSafeArea: React.CSSProperties = {
+  paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)',
+}
+
 export default function ProductCheckoutModal({ product, settings, onClose }: Props) {
   const [step, setStep] = useState<Step>(1)
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null)
@@ -52,7 +56,6 @@ export default function ProductCheckoutModal({ product, settings, onClose }: Pro
   const [copiedField, setCopiedField] = useState<string | null>(null)
   const [freshPlans, setFreshPlans] = useState<ProductPlan[] | null>(null)
 
-  // Fetch fresh plans from DB when modal opens so prices are always up-to-date
   useEffect(() => {
     fetch(`/api/products/${product.id}`, { cache: 'no-store' })
       .then((r) => r.json())
@@ -83,9 +86,8 @@ export default function ProductCheckoutModal({ product, settings, onClose }: Pro
         const res = await fetch(`/api/orders/${orderData.orderCode}`, { cache: 'no-store' })
         const json = await res.json()
         if (json.paymentStatus === 'paid') setPaymentStatus('paid')
-        // Always update bank info from the order so it reflects current PaymentSettings
         if (json.mbBankInfo) setMbBankInfo(json.mbBankInfo)
-      } catch { /* ignore network errors */ }
+      } catch { /* ignore */ }
     }
 
     poll()
@@ -143,12 +145,10 @@ export default function ProductCheckoutModal({ product, settings, onClose }: Pro
       })
       setStep(3)
 
-      // Fetch order details immediately so bank info shows without waiting for the poll interval
       fetch(`/api/orders/${json.orderCode}`, { cache: 'no-store' })
         .then(r => r.ok ? r.json() : null)
         .then(data => {
           if (data?.mbBankInfo) setMbBankInfo(data.mbBankInfo)
-          // MoMo: fallback to QR from create response if order API has no bank info
           else if (json.qrCode) setMbBankInfo({ bankName: null, accountNumber: null, accountName: null, paymentContent: null, qrCodeUrl: json.qrCode })
         })
         .catch(() => {
@@ -161,24 +161,27 @@ export default function ProductCheckoutModal({ product, settings, onClose }: Pro
     }
   }
 
+  const isPaid = paymentStatus === 'paid'
+
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-end md:items-center md:justify-center">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 modal-backdrop"
-        style={{ WebkitBackdropFilter: 'blur(24px)' }}
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        style={{ WebkitBackdropFilter: 'blur(8px)' } as React.CSSProperties}
         onClick={onClose}
       />
 
-      {/* Modal box */}
-      <div className="relative w-full sm:max-w-md max-h-[92vh] sm:max-h-[85vh] overflow-y-auto glass border border-white/10 rounded-t-3xl sm:rounded-3xl shadow-2xl">
-        {/* Header */}
-        <div className="sticky top-0 z-10 bg-[#050816]/95 backdrop-blur-md border-b border-white/10 px-5 py-4">
-          {/* Progress steps */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
+      {/* Sheet (mobile bottom) / Modal (desktop center) */}
+      <div className="relative flex flex-col w-full overflow-hidden glass border border-white/10 shadow-2xl max-md:max-h-[88dvh] max-md:rounded-t-[28px] md:max-w-md md:max-h-[85dvh] md:rounded-3xl">
+
+        {/* ── Sticky Header ── */}
+        <div className="flex-none bg-[#050816]/95 backdrop-blur-md border-b border-slate-800 px-5 py-4">
+          {/* Step indicator — centered, X absolute right */}
+          <div className="relative flex items-center justify-center mb-3">
+            <div className="flex items-center gap-2">
               {STEPS.map((s, i) => (
-                <div key={i} className="flex items-center gap-1.5">
+                <div key={i} className="flex items-center gap-2">
                   <div
                     className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
                       step > i + 1
@@ -198,273 +201,210 @@ export default function ProductCheckoutModal({ product, settings, onClose }: Pro
                     {s}
                   </span>
                   {i < STEPS.length - 1 && (
-                    <div
-                      className={`h-0.5 w-5 sm:w-8 rounded ${
-                        step > i + 1 ? 'bg-emerald-500' : 'bg-white/10'
-                      }`}
-                    />
+                    <div className={`h-0.5 w-6 rounded ${step > i + 1 ? 'bg-emerald-500' : 'bg-white/10'}`} />
                   )}
                 </div>
               ))}
             </div>
             <button
               onClick={onClose}
-              className="p-1.5 text-slate-400 hover:text-white transition-colors rounded-lg hover:bg-white/10"
+              aria-label="Đóng"
+              className="absolute right-0 w-8 h-8 flex items-center justify-center rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
           </div>
 
-          {/* Product name row */}
-          <div className="flex items-center gap-2 mt-3">
-            <ProductLogo slug={product.slug} size={24} />
-            <span className="text-white font-semibold text-sm">{product.name}</span>
-            <span className="text-slate-500 text-xs">· {STEPS[step - 1]}</span>
+          {/* Product row */}
+          <div className="flex items-center gap-2">
+            <ProductLogo slug={product.slug} size={22} />
+            <span className="text-white font-semibold text-sm truncate">{product.name}</span>
+            <span className="text-slate-500 text-xs shrink-0">· {STEPS[step - 1]}</span>
           </div>
         </div>
 
-        {/* ── Step 1: Variant selection ── */}
-        {step === 1 && (
-          <div className="p-5">
-            <h3 className="text-white font-bold text-lg mb-1">Chọn gói dịch vụ</h3>
-            <p className="text-slate-400 text-sm mb-5">
-              Tất cả gói đều bao gồm hỗ trợ cài đặt và hướng dẫn sử dụng
-            </p>
+        {/* ── Scrollable Content ── */}
+        <div className="flex-1 overflow-y-auto overscroll-contain">
 
-            <div className="flex flex-col gap-2.5">
-              {variants.map((v) => {
-                const isSelected = selectedVariant?.id === v.id
-                return (
-                  <button
-                    key={v.id}
-                    onClick={() => !v.disabled && setSelectedVariant(v)}
-                    disabled={v.disabled}
-                    className={`relative text-left p-4 rounded-xl border transition-all duration-200 ${
-                      v.disabled
-                        ? 'border-white/5 bg-white/[0.02] opacity-50 cursor-not-allowed'
-                        : isSelected
-                        ? 'border-cyan-400 bg-cyan-500/10 shadow-lg shadow-cyan-500/20'
-                        : 'border-white/10 bg-white/5 hover:border-white/30 cursor-pointer'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      {/* Left: name + meta */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-white font-semibold text-sm leading-snug">{v.name}</p>
-                          {v.badge && (
-                            <span
-                              className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${
-                                v.disabled
-                                  ? 'bg-white/10 text-slate-400 border border-white/10'
-                                  : 'bg-gradient-to-r from-cyan-500 to-emerald-500 text-white'
-                              }`}
-                            >
-                              {v.badge}
-                            </span>
-                          )}
+          {/* Step 1: Variant selection */}
+          {step === 1 && (
+            <div className="px-5 pt-5 pb-4">
+              <h3 className="text-white font-bold text-xl mb-1">Chọn gói dịch vụ</h3>
+              <p className="text-slate-400 text-sm mb-4">
+                Tất cả gói đều bao gồm hỗ trợ cài đặt và hướng dẫn sử dụng
+              </p>
+              <div className="flex flex-col gap-2.5">
+                {variants.map((v) => {
+                  const isSelected = selectedVariant?.id === v.id
+                  return (
+                    <button
+                      key={v.id}
+                      onClick={() => !v.disabled && setSelectedVariant(v)}
+                      disabled={v.disabled}
+                      className={`relative w-full text-left p-4 rounded-xl border transition-all duration-200 ${
+                        v.disabled
+                          ? 'border-white/5 bg-white/[0.02] opacity-40 cursor-not-allowed'
+                          : isSelected
+                          ? 'border-cyan-400 bg-cyan-500/10 shadow-lg shadow-cyan-500/20'
+                          : 'border-white/10 bg-white/5 hover:border-white/30 active:scale-[0.99] cursor-pointer'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-white font-semibold text-sm leading-snug">{v.name}</p>
+                            {v.badge && (
+                              <span
+                                className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${
+                                  v.disabled
+                                    ? 'bg-white/10 text-slate-400 border border-white/10'
+                                    : 'bg-gradient-to-r from-cyan-500 to-emerald-500 text-white'
+                                }`}
+                              >
+                                {v.badge}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-slate-500 text-xs mt-0.5">{v.warrantyText}</p>
+                          {v.subLabel && <p className="text-slate-500 text-xs mt-0.5">{v.subLabel}</p>}
                         </div>
-                        <p className="text-slate-500 text-xs mt-0.5">{v.warrantyText}</p>
-                        {v.subLabel && (
-                          <p className="text-slate-500 text-xs mt-0.5">{v.subLabel}</p>
-                        )}
+                        <div className="shrink-0 text-right">
+                          <p className={`font-bold text-base ${isSelected ? 'gradient-text' : 'text-slate-200'}`}>
+                            {formatPrice(v.price)}
+                          </p>
+                          <span className={`text-[10px] font-medium ${
+                            v.saleStatus === 'OUT_OF_STOCK' ? 'text-orange-400'
+                            : v.saleStatus === 'MAINTENANCE' ? 'text-amber-400'
+                            : v.saleStatus === 'PREORDER' ? 'text-indigo-400'
+                            : 'text-emerald-400'
+                          }`}>
+                            {v.saleStatus === 'OUT_OF_STOCK' ? '● Hết hàng'
+                              : v.saleStatus === 'MAINTENANCE' ? '● Tạm đóng'
+                              : v.saleStatus === 'PREORDER' ? '● Đặt trước'
+                              : '● Còn hàng'}
+                          </span>
+                        </div>
                       </div>
-
-                      {/* Right: price + status */}
-                      <div className="shrink-0 text-right">
-                        <p
-                          className={`font-bold text-base ${
-                            isSelected ? 'gradient-text' : 'text-slate-200'
-                          }`}
-                        >
-                          {formatPrice(v.price)}
-                        </p>
-                        <span
-                          className={`text-[10px] font-medium ${
-                            v.saleStatus === 'OUT_OF_STOCK'
-                              ? 'text-orange-400'
-                              : v.saleStatus === 'MAINTENANCE'
-                              ? 'text-amber-400'
-                              : v.saleStatus === 'PREORDER'
-                              ? 'text-indigo-400'
-                              : 'text-emerald-400'
-                          }`}
-                        >
-                          {v.saleStatus === 'OUT_OF_STOCK'
-                            ? '● Hết hàng'
-                            : v.saleStatus === 'MAINTENANCE'
-                            ? '● Tạm đóng'
-                            : v.saleStatus === 'PREORDER'
-                            ? '● Đặt trước'
-                            : '● Còn hàng'}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Selected indicator */}
-                    {isSelected && (
-                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-cyan-500 to-emerald-500 rounded-l-xl" />
-                    )}
-                  </button>
-                )
-              })}
-            </div>
-
-            <button
-              onClick={() => selectedVariant && setStep(2)}
-              disabled={!selectedVariant}
-              className="w-full mt-6 py-4 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-400 hover:to-emerald-400 text-white font-semibold transition-all duration-200 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
-            >
-              Tiếp theo →
-            </button>
-          </div>
-        )}
-
-        {/* ── Step 2: Customer info ── */}
-        {step === 2 && (
-          <div className="p-5">
-            <h3 className="text-white font-bold text-lg mb-1">Thông tin của bạn</h3>
-            <p className="text-slate-400 text-sm mb-5">
-              Đặt hàng:{' '}
-              <span className="text-cyan-400 font-semibold">{selectedVariant?.name}</span>
-              {' — '}
-              <span className="gradient-text font-bold">
-                {selectedVariant?.price ? formatPrice(selectedVariant.price) : ''}
-              </span>
-            </p>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-white font-medium mb-1.5 text-sm">
-                  Họ và tên <span className="text-red-400">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={customer.customerName}
-                  onChange={(e) => setCustomer((c) => ({ ...c, customerName: e.target.value }))}
-                  placeholder="Nhập họ tên đầy đủ"
-                  className="input-field"
-                />
-                {fieldErrors.customerName && (
-                  <p className="text-red-400 text-xs mt-1">{fieldErrors.customerName}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-white font-medium mb-1.5 text-sm">
-                  Số điện thoại / Zalo <span className="text-red-400">*</span>
-                </label>
-                <input
-                  type="tel"
-                  value={customer.phone}
-                  onChange={(e) => setCustomer((c) => ({ ...c, phone: e.target.value }))}
-                  placeholder="Ví dụ: 0912345678"
-                  className="input-field"
-                />
-                {fieldErrors.phone && (
-                  <p className="text-red-400 text-xs mt-1">{fieldErrors.phone}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-white font-medium mb-1.5 text-sm">
-                  Email nhận tài khoản <span className="text-red-400">*</span>
-                </label>
-                <input
-                  type="email"
-                  value={customer.email}
-                  onChange={(e) => setCustomer((c) => ({ ...c, email: e.target.value }))}
-                  placeholder="Nhập Gmail hoặc email nhận tài khoản"
-                  className="input-field"
-                  inputMode="email"
-                  autoComplete="email"
-                />
-                {fieldErrors.email && (
-                  <p className="text-red-400 text-xs mt-1">{fieldErrors.email}</p>
-                )}
-                <p className="text-slate-500 text-xs mt-1">
-                  Thông tin tài khoản sẽ được gửi về email này sau khi shop xử lý.
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-white font-medium mb-1.5 text-sm">
-                  Ghi chú{' '}
-                  <span className="text-slate-500 font-normal">(không bắt buộc)</span>
-                </label>
-                <textarea
-                  value={customer.note}
-                  onChange={(e) => setCustomer((c) => ({ ...c, note: e.target.value }))}
-                  rows={2}
-                  placeholder="Ghi chú thêm nếu có..."
-                  className="input-field resize-none"
-                />
+                      {isSelected && (
+                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-cyan-500 to-emerald-500 rounded-l-xl" />
+                      )}
+                    </button>
+                  )
+                })}
               </div>
             </div>
+          )}
 
-            {submitError && (
-              <div className="mt-4 bg-red-500/10 border border-red-500/30 rounded-xl p-3 text-red-400 text-sm">
-                {submitError}
+          {/* Step 2: Customer info */}
+          {step === 2 && (
+            <div className="px-5 pt-5 pb-4">
+              <h3 className="text-white font-bold text-xl mb-1">Thông tin của bạn</h3>
+              <p className="text-slate-400 text-sm mb-5">
+                Đặt hàng:{' '}
+                <span className="text-cyan-400 font-semibold">{selectedVariant?.name}</span>
+                {' — '}
+                <span className="gradient-text font-bold">
+                  {selectedVariant?.price ? formatPrice(selectedVariant.price) : ''}
+                </span>
+              </p>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-white font-medium mb-1.5 text-sm">
+                    Họ và tên <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={customer.customerName}
+                    onChange={(e) => setCustomer((c) => ({ ...c, customerName: e.target.value }))}
+                    placeholder="Nhập họ tên đầy đủ"
+                    className="input-field"
+                  />
+                  {fieldErrors.customerName && (
+                    <p className="text-red-400 text-xs mt-1">{fieldErrors.customerName}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-white font-medium mb-1.5 text-sm">
+                    Số điện thoại / Zalo <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="tel"
+                    value={customer.phone}
+                    onChange={(e) => setCustomer((c) => ({ ...c, phone: e.target.value }))}
+                    placeholder="Ví dụ: 0912345678"
+                    className="input-field"
+                  />
+                  {fieldErrors.phone && (
+                    <p className="text-red-400 text-xs mt-1">{fieldErrors.phone}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-white font-medium mb-1.5 text-sm">
+                    Email nhận tài khoản <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    value={customer.email}
+                    onChange={(e) => setCustomer((c) => ({ ...c, email: e.target.value }))}
+                    placeholder="Nhập Gmail hoặc email nhận tài khoản"
+                    className="input-field"
+                    inputMode="email"
+                    autoComplete="email"
+                  />
+                  {fieldErrors.email && (
+                    <p className="text-red-400 text-xs mt-1">{fieldErrors.email}</p>
+                  )}
+                  <p className="text-slate-500 text-xs mt-1">
+                    Tài khoản giao qua email này ngay sau khi thanh toán.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-white font-medium mb-1.5 text-sm">
+                    Ghi chú{' '}
+                    <span className="text-slate-500 font-normal">(không bắt buộc)</span>
+                  </label>
+                  <textarea
+                    value={customer.note}
+                    onChange={(e) => setCustomer((c) => ({ ...c, note: e.target.value }))}
+                    rows={2}
+                    placeholder="Ghi chú thêm nếu có..."
+                    className="input-field resize-none"
+                  />
+                </div>
               </div>
-            )}
 
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => { setSubmitError(null); setStep(1) }}
-                className="px-4 py-3 rounded-xl border border-white/20 text-slate-300 hover:text-white hover:border-white/40 transition-all text-sm flex items-center gap-1 shrink-0"
-              >
-                <ChevronLeft className="w-4 h-4" />
-                Quay lại
-              </button>
-              <button
-                onClick={() => { if (validateStep2()) submitOrder() }}
-                disabled={isSubmitting}
-                className="flex-1 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-400 hover:to-emerald-400 text-white font-semibold transition-all duration-200 active:scale-95 disabled:opacity-60 disabled:active:scale-100 flex items-center justify-center gap-2 text-sm"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Đang xử lý...
-                  </>
-                ) : (
-                  'Xác nhận & Thanh toán →'
-                )}
-              </button>
+              {submitError && (
+                <div className="mt-4 bg-red-500/10 border border-red-500/30 rounded-xl p-3 text-red-400 text-sm">
+                  {submitError}
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          )}
 
-        {/* ── Step 3: Payment ── */}
-        {step === 3 && orderData && (
-          <div className="p-5">
-            {paymentStatus === 'paid' ? (
-              <div className="text-center py-8">
-                <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-emerald-500/20 flex items-center justify-center">
+          {/* Step 3 */}
+          {step === 3 && orderData && (
+            isPaid ? (
+              /* Success state */
+              <div className="flex min-h-[360px] flex-col items-center justify-center px-5 py-10 text-center">
+                <div className="w-20 h-20 rounded-full bg-emerald-500/20 flex items-center justify-center mb-5">
                   <CheckCircle className="w-10 h-10 text-emerald-400" />
                 </div>
-                <h3 className="text-white font-bold text-xl mb-2">Thanh toán thành công!</h3>
+                <h3 className="text-white font-bold text-2xl mb-2">Thanh toán thành công!</h3>
                 <p className="text-slate-400 text-sm mb-1">
                   Mã đơn:{' '}
                   <span className="text-cyan-400 font-mono font-semibold">{orderData.orderCode}</span>
                 </p>
-                <p className="text-slate-400 text-sm mb-6">
+                <p className="text-slate-400 text-sm">
                   Hệ thống đang giao tài khoản tự động.
                 </p>
-                <a
-                  href={`/order-success/${orderData.orderCode}?token=${orderData.accessToken}`}
-                  className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 text-white font-semibold text-sm active:scale-95 transition-transform mb-3"
-                >
-                  Xem thông tin tài khoản →
-                </a>
-                <button
-                  onClick={onClose}
-                  className="text-slate-400 hover:text-white text-sm transition-colors"
-                >
-                  Đóng
-                </button>
               </div>
             ) : (
-              <>
+              /* Waiting for payment */
+              <div className="px-5 pt-5 pb-4">
                 <div className="text-center mb-5">
                   <h3 className="text-white font-bold text-lg mb-1">Quét mã để thanh toán</h3>
                   <p className="text-slate-400 text-sm">
@@ -473,7 +413,6 @@ export default function ProductCheckoutModal({ product, settings, onClose }: Pro
                   </p>
                 </div>
 
-                {/* QR Code — luôn lấy từ order API (snapshotted tại thời điểm tạo đơn) */}
                 <div className="flex justify-center mb-5">
                   <div className="bg-white p-3 rounded-2xl shadow-lg">
                     {mbBankInfo?.qrCodeUrl ? (
@@ -486,14 +425,13 @@ export default function ProductCheckoutModal({ product, settings, onClose }: Pro
                         className="rounded-xl block"
                       />
                     ) : (
-                      <div className="w-[200px] h-[200px] flex items-center justify-center text-slate-400 text-sm">
-                        <Loader2 className="w-6 h-6 animate-spin" />
+                      <div className="w-[200px] h-[200px] flex items-center justify-center">
+                        <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
                       </div>
                     )}
                   </div>
                 </div>
 
-                {/* Bank info — luôn hiển thị, dùng skeleton khi chưa load xong */}
                 <div className="bg-white/5 border border-white/10 rounded-xl divide-y divide-white/5 mb-5">
                   <div className="flex justify-between items-center px-4 py-3">
                     <span className="text-slate-400 text-sm">Ngân hàng</span>
@@ -511,11 +449,7 @@ export default function ProductCheckoutModal({ product, settings, onClose }: Pro
                             onClick={() => handleCopy(mbBankInfo.accountNumber!, 'account')}
                             className="text-slate-400 hover:text-white transition-colors"
                           >
-                            {copiedField === 'account' ? (
-                              <Check className="w-4 h-4 text-emerald-400" />
-                            ) : (
-                              <Copy className="w-4 h-4" />
-                            )}
+                            {copiedField === 'account' ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
                           </button>
                         </>
                       ) : (
@@ -543,26 +477,87 @@ export default function ProductCheckoutModal({ product, settings, onClose }: Pro
                         onClick={() => handleCopy(mbBankInfo?.paymentContent || orderData.orderCode, 'orderCode')}
                         className="text-slate-400 hover:text-white transition-colors"
                       >
-                        {copiedField === 'orderCode' ? (
-                          <Check className="w-4 h-4 text-emerald-400" />
-                        ) : (
-                          <Copy className="w-4 h-4" />
-                        )}
+                        {copiedField === 'orderCode' ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
                       </button>
                     </div>
                   </div>
                 </div>
 
-                {/* Polling indicator */}
                 <div className="flex items-center justify-center gap-2 text-slate-500 text-sm py-2">
                   <Loader2 className="w-4 h-4 animate-spin text-cyan-400" />
                   <span>Đang chờ xác nhận thanh toán...</span>
                 </div>
-                <p className="text-center text-slate-600 text-xs mt-1">
+                <p className="text-center text-slate-600 text-xs mt-1 pb-2">
                   Tự động cập nhật mỗi 3 giây
                 </p>
-              </>
-            )}
+              </div>
+            )
+          )}
+        </div>
+
+        {/* ── Sticky Footer ── */}
+
+        {/* Step 1 */}
+        {step === 1 && (
+          <div
+            className="flex-none border-t border-slate-800 bg-[#050816]/95 backdrop-blur-md px-5 pt-4"
+            style={footerSafeArea}
+          >
+            <button
+              onClick={() => selectedVariant && setStep(2)}
+              disabled={!selectedVariant}
+              className="w-full h-14 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-400 hover:to-emerald-400 text-white font-semibold text-base transition-all duration-200 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
+            >
+              Tiếp theo →
+            </button>
+          </div>
+        )}
+
+        {/* Step 2 */}
+        {step === 2 && (
+          <div
+            className="flex-none border-t border-slate-800 bg-[#050816]/95 backdrop-blur-md px-5 pt-4 flex gap-3"
+            style={footerSafeArea}
+          >
+            <button
+              onClick={() => { setSubmitError(null); setStep(1) }}
+              className="h-14 px-4 rounded-xl border border-white/20 text-slate-300 hover:text-white hover:border-white/40 transition-all flex items-center gap-1 shrink-0 text-sm"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              Quay lại
+            </button>
+            <button
+              onClick={() => { if (validateStep2()) submitOrder() }}
+              disabled={isSubmitting}
+              className="flex-1 h-14 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-400 hover:to-emerald-400 text-white font-semibold transition-all duration-200 active:scale-[0.98] disabled:opacity-60 disabled:active:scale-100 flex items-center justify-center gap-2 text-sm"
+            >
+              {isSubmitting ? (
+                <><Loader2 className="w-4 h-4 animate-spin" />Đang xử lý...</>
+              ) : (
+                'Xác nhận & Thanh toán →'
+              )}
+            </button>
+          </div>
+        )}
+
+        {/* Step 3 — paid */}
+        {step === 3 && isPaid && orderData && (
+          <div
+            className="flex-none border-t border-slate-800 bg-[#050816]/95 backdrop-blur-md px-5 pt-4 space-y-3"
+            style={footerSafeArea}
+          >
+            <a
+              href={`/order-success/${orderData.orderCode}?token=${orderData.accessToken}`}
+              className="w-full h-14 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 text-white font-semibold text-sm active:scale-[0.98] transition-transform"
+            >
+              Xem thông tin tài khoản →
+            </a>
+            <button
+              onClick={onClose}
+              className="w-full py-1 text-slate-400 hover:text-white text-sm transition-colors text-center"
+            >
+              Đóng
+            </button>
           </div>
         )}
       </div>
