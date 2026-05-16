@@ -52,7 +52,7 @@ export default function OrdersPage() {
 
   return (
     <>
-      <AdminHeader title="Quản lý đơn hàng" adminEmail="admin@thanhlongshop.net" />
+      <AdminHeader title="Quản lý đơn hàng" adminEmail="admin@longshop.net" />
       <main className="flex-1 p-6 overflow-auto">
         <div className="max-w-6xl mx-auto space-y-5">
           {/* Filters */}

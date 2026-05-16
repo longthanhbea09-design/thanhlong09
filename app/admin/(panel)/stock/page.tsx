@@ -208,7 +208,7 @@ export default function StockPage() {
 
   return (
     <>
-      <AdminHeader title="Kho tài khoản" adminEmail="admin@thanhlongshop.net" />
+      <AdminHeader title="Kho tài khoản" adminEmail="admin@longshop.net" />
       <main className="flex-1 p-6 overflow-auto">
         <div className="max-w-7xl mx-auto space-y-5">
 

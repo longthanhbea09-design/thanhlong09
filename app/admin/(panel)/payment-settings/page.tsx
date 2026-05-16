@@ -223,7 +223,7 @@ export default function PaymentSettingsPage() {
   if (loading) {
     return (
       <>
-        <AdminHeader title="Cấu hình thanh toán" adminEmail="admin@thanhlongshop.net" />
+        <AdminHeader title="Cấu hình thanh toán" adminEmail="admin@longshop.net" />
         <main className="flex-1 p-6 flex items-center justify-center">
           <div className="w-8 h-8 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
         </main>
@@ -233,7 +233,7 @@ export default function PaymentSettingsPage() {
 
   return (
     <>
-      <AdminHeader title="Cấu hình thanh toán" adminEmail="admin@thanhlongshop.net" />
+      <AdminHeader title="Cấu hình thanh toán" adminEmail="admin@longshop.net" />
       <main className="flex-1 p-6 overflow-auto">
         <div className="max-w-2xl mx-auto space-y-6">
 

@@ -129,7 +129,7 @@ export default function DashboardPage() {
 
   return (
     <>
-      <AdminHeader title="Tổng quan" adminEmail="admin@thanhlongshop.net" />
+      <AdminHeader title="Tổng quan" adminEmail="admin@longshop.net" />
       <main className="flex-1 p-6 overflow-auto">
         {loading ? (
           <div className="flex items-center justify-center h-64">

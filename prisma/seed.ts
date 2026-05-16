@@ -48,7 +48,7 @@ async function main() {
   console.log('🌱 Bắt đầu seed dữ liệu...')
 
   // Admin
-  const adminEmail = process.env.ADMIN_EMAIL || 'admin@thanhlongshop.net'
+  const adminEmail = process.env.ADMIN_EMAIL || 'admin@longshop.net'
   const adminPassword = process.env.ADMIN_PASSWORD || 'admin123456'
   const passwordHash = await bcrypt.hash(adminPassword, 12)
 
