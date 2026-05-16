@@ -164,7 +164,7 @@ export default function ProductCheckoutModal({ product, settings, onClose }: Pro
   const isPaid = paymentStatus === 'paid'
 
   return (
-    <div className="fixed inset-0 z-50" style={{ height: '100dvh' } as React.CSSProperties}>
+    <div className="fixed inset-0 z-50">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/55 backdrop-blur-sm"
@@ -177,7 +177,7 @@ export default function ProductCheckoutModal({ product, settings, onClose }: Pro
           Desktop : centered modal via translate
       */}
       <div className="absolute flex flex-col overflow-hidden glass border border-white/10 shadow-2xl
-        inset-x-0 top-4 bottom-0 rounded-t-[24px]
+        inset-x-0 top-2 bottom-0 rounded-t-[24px]
         md:inset-auto md:left-1/2 md:top-1/2 md:bottom-auto
         md:-translate-x-1/2 md:-translate-y-1/2
         md:w-full md:max-w-md md:max-h-[85dvh] md:rounded-3xl">
@@ -429,10 +429,10 @@ export default function ProductCheckoutModal({ product, settings, onClose }: Pro
                         alt="QR thanh toán"
                         width={160}
                         height={160}
-                        className="rounded-xl block w-[160px] h-[160px]"
+                        className="rounded-xl block w-[150px] h-auto"
                       />
                     ) : (
-                      <div className="w-[160px] h-[160px] flex items-center justify-center">
+                      <div className="w-[150px] h-[150px] flex items-center justify-center">
                         <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
                       </div>
                     )}
