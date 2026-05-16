@@ -164,7 +164,7 @@ export default function ProductCheckoutModal({ product, settings, onClose }: Pro
   const isPaid = paymentStatus === 'paid'
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end md:items-center md:justify-center">
+    <div className="fixed inset-0 z-50 flex items-end md:items-center md:justify-center overflow-hidden" style={{ height: '100dvh' }}>
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
@@ -224,7 +224,7 @@ export default function ProductCheckoutModal({ product, settings, onClose }: Pro
         </div>
 
         {/* ── Scrollable Content ── */}
-        <div className="flex-1 overflow-y-auto overscroll-contain">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
 
           {/* Step 1: Variant selection */}
           {step === 1 && (
@@ -389,7 +389,7 @@ export default function ProductCheckoutModal({ product, settings, onClose }: Pro
           {step === 3 && orderData && (
             isPaid ? (
               /* Success state */
-              <div className="flex min-h-[360px] flex-col items-center justify-center px-5 py-10 text-center">
+              <div className="flex flex-col items-center justify-center px-5 py-10 text-center">
                 <div className="w-20 h-20 rounded-full bg-emerald-500/20 flex items-center justify-center mb-5">
                   <CheckCircle className="w-10 h-10 text-emerald-400" />
                 </div>
