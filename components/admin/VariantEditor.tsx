@@ -63,6 +63,14 @@ export default function VariantEditor({ productId, initialVariants, onVariantsCh
   const [newVariant, setNewVariant] = useState<Omit<Variant, 'id'>>(DEFAULT_NEW)
   const [savingNew, setSavingNew] = useState(false)
 
+  // Bulk select
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [deletingBulk, setDeletingBulk] = useState(false)
+
+  // Price string state — tracks raw input string per variant id to allow empty/leading-zero during editing
+  const [priceStrings, setPriceStrings] = useState<Record<string, string>>({})
+  const [newPriceStr, setNewPriceStr] = useState('')
+
   const sync = useCallback((list: Variant[]) => {
     setVariants(list)
     onVariantsChange?.(list)
@@ -74,6 +82,28 @@ export default function VariantEditor({ productId, initialVariants, onVariantsCh
   const current = (v: Variant): Variant => ({ ...v, ...edits[v.id] })
   const isDirty = (id: string) => !!(edits[id] && Object.keys(edits[id]).length > 0)
 
+  // ── Price helpers ──────────────────────────────────────────────
+  const getPriceDisplay = (id: string, currentPrice: number): string => {
+    if (priceStrings[id] !== undefined) return priceStrings[id]
+    return currentPrice === 0 ? '' : String(currentPrice)
+  }
+
+  const handlePriceChange = (id: string, raw: string) => {
+    const digits = raw.replace(/[^0-9]/g, '')
+    setPriceStrings(prev => ({ ...prev, [id]: digits }))
+    patch(id, 'price', digits === '' ? 0 : parseInt(digits, 10))
+  }
+
+  const handlePriceBlur = (id: string) => {
+    const raw = priceStrings[id]
+    if (raw === undefined) return
+    const num = parseInt(raw, 10)
+    const normalized = isNaN(num) ? '' : String(num)
+    setPriceStrings(prev => ({ ...prev, [id]: normalized }))
+    if (!isNaN(num)) patch(id, 'price', num)
+  }
+
+  // ── Variant CRUD ───────────────────────────────────────────────
   const saveVariant = async (v: Variant) => {
     const changes = edits[v.id]
     if (!changes || !Object.keys(changes).length) return
@@ -88,6 +118,7 @@ export default function VariantEditor({ productId, initialVariants, onVariantsCh
         const updated = await res.json()
         sync(variants.map(x => x.id === v.id ? updated : x))
         setEdits(prev => { const n = { ...prev }; delete n[v.id]; return n })
+        setPriceStrings(prev => { const n = { ...prev }; delete n[v.id]; return n })
       }
     } finally { setSaving(null) }
   }
@@ -109,7 +140,11 @@ export default function VariantEditor({ productId, initialVariants, onVariantsCh
     setSaving(id)
     try {
       const res = await fetch(`/api/admin/variants/${id}`, { method: 'DELETE' })
-      if (res.ok) { sync(variants.filter(x => x.id !== id)); setExpandedId(null) }
+      if (res.ok) {
+        sync(variants.filter(x => x.id !== id))
+        setExpandedId(null)
+        setSelectedIds(prev => { const n = new Set(prev); n.delete(id); return n })
+      }
     } finally { setSaving(null) }
   }
 
@@ -145,40 +180,101 @@ export default function VariantEditor({ productId, initialVariants, onVariantsCh
     if (!newVariant.name.trim()) return
     setSavingNew(true)
     try {
+      const price = newPriceStr === '' ? 0 : parseInt(newPriceStr, 10) || 0
       const res = await fetch(`/api/admin/products/${productId}/variants`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...newVariant, price: Number(newVariant.price) }),
+        body: JSON.stringify({ ...newVariant, price }),
       })
       if (res.ok) {
         const created = await res.json()
         sync([...variants, created])
         setNewVariant(DEFAULT_NEW)
+        setNewPriceStr('')
         setAddingNew(false)
         setExpandedId(created.id)
       }
     } finally { setSavingNew(false) }
   }
 
+  // ── Bulk select ────────────────────────────────────────────────
   const activeVariants = variants
     .filter(v => v.isActive)
     .sort((a, b) => a.sortOrder - b.sortOrder)
+
+  const allSelected = activeVariants.length > 0 && activeVariants.every(v => selectedIds.has(v.id))
+  const someSelected = activeVariants.some(v => selectedIds.has(v.id))
+
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(activeVariants.map(v => v.id)))
+    }
+  }
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const deleteSelected = async () => {
+    const count = selectedIds.size
+    if (!confirm(`Xóa ${count} gói đã chọn? Không thể hoàn tác.`)) return
+    setDeletingBulk(true)
+    try {
+      await Promise.all(
+        Array.from(selectedIds).map(id => fetch(`/api/admin/variants/${id}`, { method: 'DELETE' }))
+      )
+      sync(variants.filter(v => !selectedIds.has(v.id)))
+      setSelectedIds(new Set())
+      setExpandedId(null)
+    } finally { setDeletingBulk(false) }
+  }
 
   return (
     <div className="space-y-3">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <p className="text-white text-sm font-semibold">Gói bán ({activeVariants.length})</p>
-          <p className="text-slate-500 text-xs">Mỗi gói là một lựa chọn mua hàng cho khách</p>
+        <div className="flex items-center gap-3">
+          <input
+            type="checkbox"
+            ref={el => { if (el) el.indeterminate = someSelected && !allSelected }}
+            checked={allSelected}
+            onChange={toggleSelectAll}
+            className="w-4 h-4 rounded accent-cyan-400 cursor-pointer"
+            title="Chọn tất cả"
+          />
+          <div>
+            <p className="text-white text-sm font-semibold">Gói bán ({activeVariants.length})</p>
+            <p className="text-slate-500 text-xs">Mỗi gói là một lựa chọn mua hàng cho khách</p>
+          </div>
         </div>
-        <button
-          onClick={() => { setAddingNew(true); setExpandedId(null) }}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs font-medium hover:bg-cyan-500/20 transition-all"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          Thêm gói
-        </button>
+        <div className="flex items-center gap-2">
+          {selectedIds.size > 0 && (
+            <button
+              onClick={deleteSelected}
+              disabled={deletingBulk}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-medium hover:bg-red-500/20 transition-all disabled:opacity-50"
+            >
+              {deletingBulk
+                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                : <Trash2 className="w-3.5 h-3.5" />}
+              Xóa {selectedIds.size} gói
+            </button>
+          )}
+          <button
+            onClick={() => { setAddingNew(true); setExpandedId(null) }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs font-medium hover:bg-cyan-500/20 transition-all"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Thêm gói
+          </button>
+        </div>
       </div>
 
       {/* Variant accordion */}
@@ -189,6 +285,7 @@ export default function VariantEditor({ productId, initialVariants, onVariantsCh
           const dirty = isDirty(v.id)
           const isSaving = saving === v.id
           const conflict = hasConflict(c.warrantyText, c.description)
+          const isSelected = selectedIds.has(v.id)
 
           return (
             <div
@@ -196,67 +293,80 @@ export default function VariantEditor({ productId, initialVariants, onVariantsCh
               className={`rounded-xl border overflow-hidden transition-all ${
                 isExpanded
                   ? 'border-cyan-500/30 bg-white/[0.02]'
+                  : isSelected
+                  ? 'border-cyan-500/20 bg-cyan-500/[0.02]'
                   : c.available
                   ? 'border-white/10 hover:border-white/20'
                   : 'border-orange-500/20'
               }`}
             >
-              {/* Collapsed header — click to expand */}
-              <button
-                className="w-full flex items-center gap-3 px-4 py-3 text-left"
-                onClick={() => setExpandedId(isExpanded ? null : v.id)}
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-white text-sm font-medium truncate">{c.name || 'Tên gói'}</span>
-                    {c.badge && (
-                      <span className="px-1.5 py-0.5 rounded text-[10px] bg-gradient-to-r from-cyan-500/20 to-emerald-500/20 border border-cyan-500/30 text-cyan-300">
-                        {c.badge}
-                      </span>
-                    )}
-                    {conflict && (
-                      <span title="Mâu thuẫn KBH / Bảo hành">
-                        <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
-                      </span>
-                    )}
-                    {dirty && <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shrink-0" title="Chưa lưu" />}
+              {/* Collapsed header */}
+              <div className="flex items-center gap-2 px-3 py-3">
+                {/* Checkbox — stop propagation so it doesn't toggle accordion */}
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={() => toggleSelect(v.id)}
+                  onClick={e => e.stopPropagation()}
+                  className="w-4 h-4 rounded accent-cyan-400 cursor-pointer shrink-0"
+                />
+
+                {/* Expand button — takes remaining space */}
+                <button
+                  className="flex-1 flex items-center gap-3 text-left min-w-0"
+                  onClick={() => setExpandedId(isExpanded ? null : v.id)}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-white text-sm font-medium truncate">{c.name || 'Tên gói'}</span>
+                      {c.badge && (
+                        <span className="px-1.5 py-0.5 rounded text-[10px] bg-gradient-to-r from-cyan-500/20 to-emerald-500/20 border border-cyan-500/30 text-cyan-300">
+                          {c.badge}
+                        </span>
+                      )}
+                      {conflict && (
+                        <span title="Mâu thuẫn KBH / Bảo hành">
+                          <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+                        </span>
+                      )}
+                      {dirty && <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shrink-0" title="Chưa lưu" />}
+                    </div>
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                      <span className="text-emerald-400 text-xs font-semibold">{formatPrice(c.price)}</span>
+                      <span className="text-slate-600 text-xs">·</span>
+                      <span className="text-slate-400 text-xs">{c.warrantyText}</span>
+                      {c.description && (
+                        <>
+                          <span className="text-slate-700 text-xs">·</span>
+                          <span className="text-slate-500 text-xs truncate max-w-[160px]">{c.description}</span>
+                        </>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                    <span className="text-emerald-400 text-xs font-semibold">{formatPrice(c.price)}</span>
-                    <span className="text-slate-600 text-xs">·</span>
-                    <span className="text-slate-400 text-xs">{c.warrantyText}</span>
-                    {c.description && (
-                      <>
-                        <span className="text-slate-700 text-xs">·</span>
-                        <span className="text-slate-500 text-xs truncate max-w-[160px]">{c.description}</span>
-                      </>
-                    )}
-                  </div>
-                </div>
-                <span className={`text-[10px] font-semibold shrink-0 ${
-                  c.saleMode === 'PREORDER' ? 'text-indigo-400'
-                  : c.saleMode === 'FORCE_HIDDEN' ? 'text-slate-500'
-                  : c.saleMode === 'MAINTENANCE' ? 'text-amber-400'
-                  : v.saleStatus === 'IN_STOCK' ? 'text-emerald-400'
-                  : 'text-orange-400'
-                }`}>
-                  {c.saleMode === 'PREORDER' ? '● Đặt trước'
-                    : c.saleMode === 'FORCE_HIDDEN' ? '● Ẩn'
-                    : c.saleMode === 'MAINTENANCE' ? '● Bảo trì'
-                    : v.saleStatus === 'IN_STOCK'
-                    ? `● Còn${v.stockCount !== undefined ? ` (${v.stockCount})` : ''}`
-                    : `● Hết${v.stockCount !== undefined ? ` (${v.stockCount})` : ''}`}
-                </span>
-                {isExpanded
-                  ? <ChevronUp className="w-4 h-4 text-slate-400 shrink-0" />
-                  : <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
-                }
-              </button>
+                  <span className={`text-[10px] font-semibold shrink-0 ${
+                    c.saleMode === 'PREORDER' ? 'text-indigo-400'
+                    : c.saleMode === 'FORCE_HIDDEN' ? 'text-slate-500'
+                    : c.saleMode === 'MAINTENANCE' ? 'text-amber-400'
+                    : v.saleStatus === 'IN_STOCK' ? 'text-emerald-400'
+                    : 'text-orange-400'
+                  }`}>
+                    {c.saleMode === 'PREORDER' ? '● Đặt trước'
+                      : c.saleMode === 'FORCE_HIDDEN' ? '● Ẩn'
+                      : c.saleMode === 'MAINTENANCE' ? '● Bảo trì'
+                      : v.saleStatus === 'IN_STOCK'
+                      ? `● Còn${v.stockCount !== undefined ? ` (${v.stockCount})` : ''}`
+                      : `● Hết${v.stockCount !== undefined ? ` (${v.stockCount})` : ''}`}
+                  </span>
+                  {isExpanded
+                    ? <ChevronUp className="w-4 h-4 text-slate-400 shrink-0" />
+                    : <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
+                  }
+                </button>
+              </div>
 
               {/* Expanded edit form */}
               {isExpanded && (
                 <div className="border-t border-white/8 px-4 pb-4 pt-4 space-y-4">
-                  {/* Conflict warning */}
                   {conflict && (
                     <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/30 rounded-lg p-3">
                       <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
@@ -283,9 +393,12 @@ export default function VariantEditor({ productId, initialVariants, onVariantsCh
                     <div>
                       <label className={lbl}>Giá bán (VNĐ)</label>
                       <input
-                        type="number"
-                        value={c.price}
-                        onChange={e => patch(v.id, 'price', Number(e.target.value))}
+                        type="text"
+                        inputMode="numeric"
+                        value={getPriceDisplay(v.id, c.price)}
+                        onChange={e => handlePriceChange(v.id, e.target.value)}
+                        onBlur={() => handlePriceBlur(v.id)}
+                        placeholder="99000"
                         className={inp}
                       />
                     </div>
@@ -367,7 +480,6 @@ export default function VariantEditor({ productId, initialVariants, onVariantsCh
 
                   {/* Actions */}
                   <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-white/5">
-                    {/* Còn hàng toggle */}
                     <button
                       onClick={() => toggleAvailable(v)}
                       disabled={isSaving}
@@ -380,7 +492,6 @@ export default function VariantEditor({ productId, initialVariants, onVariantsCh
                     </button>
 
                     <div className="flex gap-2 ml-auto">
-                      {/* Nhân bản */}
                       <button
                         onClick={() => duplicateVariant(v)}
                         disabled={isSaving}
@@ -391,7 +502,6 @@ export default function VariantEditor({ productId, initialVariants, onVariantsCh
                         Nhân bản
                       </button>
 
-                      {/* Lưu */}
                       <button
                         onClick={() => saveVariant(v)}
                         disabled={!dirty || isSaving}
@@ -405,7 +515,6 @@ export default function VariantEditor({ productId, initialVariants, onVariantsCh
                         {dirty ? 'Lưu' : 'Đã lưu'}
                       </button>
 
-                      {/* Xóa */}
                       <button
                         onClick={() => deleteVariant(v.id)}
                         disabled={isSaving}
@@ -442,9 +551,14 @@ export default function VariantEditor({ productId, initialVariants, onVariantsCh
             <div>
               <label className={lbl}>Giá bán (VNĐ)</label>
               <input
-                type="number"
-                value={newVariant.price || ''}
-                onChange={e => setNewVariant(n => ({ ...n, price: Number(e.target.value) }))}
+                type="text"
+                inputMode="numeric"
+                value={newPriceStr}
+                onChange={e => setNewPriceStr(e.target.value.replace(/[^0-9]/g, ''))}
+                onBlur={() => {
+                  const num = parseInt(newPriceStr, 10)
+                  setNewPriceStr(isNaN(num) ? '' : String(num))
+                }}
                 placeholder="99000"
                 className={inp}
               />
@@ -533,7 +647,7 @@ export default function VariantEditor({ productId, initialVariants, onVariantsCh
               Thêm gói
             </button>
             <button
-              onClick={() => { setAddingNew(false); setNewVariant(DEFAULT_NEW) }}
+              onClick={() => { setAddingNew(false); setNewVariant(DEFAULT_NEW); setNewPriceStr('') }}
               className="px-4 py-2 rounded-lg border border-white/10 text-slate-400 text-xs hover:text-white transition-all"
             >
               Hủy
