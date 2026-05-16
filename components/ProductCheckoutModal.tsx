@@ -164,16 +164,23 @@ export default function ProductCheckoutModal({ product, settings, onClose }: Pro
   const isPaid = paymentStatus === 'paid'
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end md:items-center md:justify-center overflow-hidden" style={{ height: '100dvh' }}>
+    <div className="fixed inset-0 z-50" style={{ height: '100dvh' } as React.CSSProperties}>
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/55 backdrop-blur-sm"
         style={{ WebkitBackdropFilter: 'blur(8px)' } as React.CSSProperties}
         onClick={onClose}
       />
 
-      {/* Sheet (mobile bottom) / Modal (desktop center) */}
-      <div className="relative flex flex-col w-full overflow-hidden glass border border-white/10 shadow-2xl max-md:h-[92dvh] max-md:rounded-t-[28px] md:max-w-md md:max-h-[85dvh] md:rounded-3xl">
+      {/* Sheet / Modal
+          Mobile  : absolute top-4 → bottom-0  (nearly full screen, 16px gap at top)
+          Desktop : centered modal via translate
+      */}
+      <div className="absolute flex flex-col overflow-hidden glass border border-white/10 shadow-2xl
+        inset-x-0 top-4 bottom-0 rounded-t-[24px]
+        md:inset-auto md:left-1/2 md:top-1/2 md:bottom-auto
+        md:-translate-x-1/2 md:-translate-y-1/2
+        md:w-full md:max-w-md md:max-h-[85dvh] md:rounded-3xl">
 
         {/* ── Sticky Header ── */}
         <div className="flex-none bg-[#050816]/95 backdrop-blur-md border-b border-slate-800 px-5 py-3">
