@@ -9,15 +9,31 @@ function buildDeliveryContent(acc: {
   password: string
   extraInfo: string
 }): string {
-  // Decrypt password and extraInfo — handles both encrypted (new) and plaintext (legacy) values
   const password = decrypt(acc.password)
   const extraInfo = acc.extraInfo ? decrypt(acc.extraInfo) : ''
   const lines = [`Tài khoản: ${acc.username}`, `Mật khẩu: ${password}`]
+
   if (extraInfo) {
-    // Normalize bare domain to full URL so plain-text channels (Telegram/Zalo) auto-link it
-    const normalizedExtra = extraInfo.replace(/(?<![:/\w])2fa\.live\b/gi, 'https://2fa.live')
-    lines.push(`Ghi chú: ${normalizedExtra}`)
+    // extraInfo format from import: "2FA_CODE" or "2FA_CODE|note" or plain note
+    const pipeIdx = extraInfo.indexOf('|')
+    if (pipeIdx !== -1) {
+      // Split on first |: left = 2FA key, right = note
+      const twofa = extraInfo.slice(0, pipeIdx).trim()
+      const note = extraInfo.slice(pipeIdx + 1).trim()
+      if (twofa) lines.push(`Mã 2FA: ${twofa}`)
+      if (note) {
+        const normalized = note.replace(/(?<![:/\w])2fa\.live\b/gi, 'https://2fa.live')
+        lines.push(`Ghi chú: ${normalized}`)
+      }
+    } else if (/^[A-Za-z2-7]{16,}$/.test(extraInfo)) {
+      // Looks like a TOTP base32 secret
+      lines.push(`Mã 2FA: ${extraInfo}`)
+    } else {
+      const normalized = extraInfo.replace(/(?<![:/\w])2fa\.live\b/gi, 'https://2fa.live')
+      lines.push(`Ghi chú: ${normalized}`)
+    }
   }
+
   return lines.join('\n')
 }
 
