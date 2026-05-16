@@ -14,11 +14,14 @@ interface Variant {
   type: string
   price: number
   warrantyText: string
-  description: string | null   // "Chú thích gói"
-  badge: string | null         // "Nhãn gói"
+  description: string | null
+  badge: string | null
+  saleMode: string
   available: boolean
   isActive: boolean
   sortOrder: number
+  stockCount?: number
+  saleStatus?: string
 }
 
 interface Props {
@@ -45,6 +48,7 @@ const DEFAULT_NEW: Omit<Variant, 'id'> = {
   warrantyText: 'KBH',
   description: '',
   badge: null,
+  saleMode: 'AUTO_STOCK',
   available: true,
   isActive: true,
   sortOrder: 99,
@@ -124,6 +128,7 @@ export default function VariantEditor({ productId, initialVariants, onVariantsCh
           warrantyText: c.warrantyText,
           description: c.description || '',
           badge: c.badge,
+          saleMode: c.saleMode ?? 'AUTO_STOCK',
           available: false,
           sortOrder: c.sortOrder + 1,
         }),
@@ -228,8 +233,19 @@ export default function VariantEditor({ productId, initialVariants, onVariantsCh
                     )}
                   </div>
                 </div>
-                <span className={`text-[10px] font-semibold shrink-0 ${c.available ? 'text-emerald-400' : 'text-orange-400'}`}>
-                  {c.available ? '● Còn' : '● Hết'}
+                <span className={`text-[10px] font-semibold shrink-0 ${
+                  c.saleMode === 'PREORDER' ? 'text-indigo-400'
+                  : c.saleMode === 'FORCE_HIDDEN' ? 'text-slate-500'
+                  : c.saleMode === 'MAINTENANCE' ? 'text-amber-400'
+                  : v.saleStatus === 'IN_STOCK' ? 'text-emerald-400'
+                  : 'text-orange-400'
+                }`}>
+                  {c.saleMode === 'PREORDER' ? '● Đặt trước'
+                    : c.saleMode === 'FORCE_HIDDEN' ? '● Ẩn'
+                    : c.saleMode === 'MAINTENANCE' ? '● Bảo trì'
+                    : v.saleStatus === 'IN_STOCK'
+                    ? `● Còn${v.stockCount !== undefined ? ` (${v.stockCount})` : ''}`
+                    : `● Hết${v.stockCount !== undefined ? ` (${v.stockCount})` : ''}`}
                 </span>
                 {isExpanded
                   ? <ChevronUp className="w-4 h-4 text-slate-400 shrink-0" />
@@ -329,6 +345,24 @@ export default function VariantEditor({ productId, initialVariants, onVariantsCh
                     <p className={hint}>
                       Hiển thị dưới dòng bảo hành. Không nên nhắc "Bảo hành" nếu đã chọn KBH.
                     </p>
+                  </div>
+
+                  {/* Row 4: Chế độ bán */}
+                  <div>
+                    <label className={lbl}>Chế độ bán</label>
+                    <select
+                      value={c.saleMode ?? 'AUTO_STOCK'}
+                      onChange={e => patch(v.id, 'saleMode', e.target.value)}
+                      className={inp}
+                    >
+                      <option value="AUTO_STOCK">AUTO_STOCK — tự ẩn khi hết kho</option>
+                      <option value="PREORDER">PREORDER — cho đặt trước, không giao ngay</option>
+                      <option value="MAINTENANCE">MAINTENANCE — tạm đóng (hiện nhưng khoá)</option>
+                      <option value="FORCE_HIDDEN">FORCE_HIDDEN — ẩn hoàn toàn khỏi shop</option>
+                    </select>
+                    {c.saleMode === 'PREORDER' && (
+                      <p className={hint}>Khách đặt được nhưng hệ thống không giao ngay — admin giao thủ công khi có hàng.</p>
+                    )}
                   </div>
 
                   {/* Actions */}
@@ -464,6 +498,20 @@ export default function VariantEditor({ productId, initialVariants, onVariantsCh
               placeholder="VD: Tài khoản riêng, dùng ổn định"
               className={inp}
             />
+          </div>
+
+          <div>
+            <label className={lbl}>Chế độ bán</label>
+            <select
+              value={newVariant.saleMode ?? 'AUTO_STOCK'}
+              onChange={e => setNewVariant(n => ({ ...n, saleMode: e.target.value }))}
+              className={inp}
+            >
+              <option value="AUTO_STOCK">AUTO_STOCK — tự ẩn khi hết kho</option>
+              <option value="PREORDER">PREORDER — đặt trước</option>
+              <option value="MAINTENANCE">MAINTENANCE — tạm đóng</option>
+              <option value="FORCE_HIDDEN">FORCE_HIDDEN — ẩn khỏi shop</option>
+            </select>
           </div>
 
           {hasConflict(newVariant.warrantyText, newVariant.description) && (

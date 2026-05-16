@@ -8,9 +8,12 @@ export interface ProductPlan {
   warrantyText: string
   description: string | null
   badge: string | null
+  saleMode: string
   available: boolean
   isActive: boolean
   sortOrder: number
+  stockCount?: number
+  saleStatus?: string
 }
 
 export interface Product {
@@ -73,7 +76,7 @@ export interface Order {
   updatedAt: Date
   product: Product
   plan: ProductPlan
-  accountStock?: AccountStock | null
+  accountStocks?: AccountStock[]
 }
 
 export interface Setting {

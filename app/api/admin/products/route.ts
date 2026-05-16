@@ -3,17 +3,41 @@ import { prisma } from '@/lib/prisma'
 import { productSchema } from '@/lib/validators'
 import { securityLog } from '@/lib/securityLog'
 import { getClientIp } from '@/lib/rateLimit'
+import { getSaleStatus } from '@/lib/saleStatus'
 
 export async function GET() {
   try {
-    const products = await prisma.product.findMany({
-      include: {
-        plans: { orderBy: { sortOrder: 'asc' } },
-        _count: { select: { orders: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-    })
-    return NextResponse.json(products)
+    const [products, stockGroups] = await Promise.all([
+      prisma.product.findMany({
+        include: {
+          plans: { orderBy: { sortOrder: 'asc' } },
+          _count: { select: { orders: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.accountStock.groupBy({
+        by: ['planId'],
+        where: { status: 'available' },
+        _count: { id: true },
+      }),
+    ])
+
+    const stockMap = new Map(stockGroups.map((s) => [s.planId, s._count.id]))
+
+    const enriched = products.map((product) => ({
+      ...product,
+      plans: product.plans.map((plan) => {
+        const stockCount = stockMap.get(plan.id) ?? 0
+        const saleStatus = getSaleStatus({
+          planSaleMode: plan.saleMode,
+          planAvailable: plan.available,
+          stockCount,
+        })
+        return { ...plan, stockCount, saleStatus }
+      }),
+    }))
+
+    return NextResponse.json(enriched)
   } catch (error) {
     console.error('GET /api/admin/products error:', error)
     return NextResponse.json({ error: 'Lỗi server' }, { status: 500 })

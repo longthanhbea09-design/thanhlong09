@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { guardObjectId } from '@/lib/db/real'
 
+const VALID_SALE_MODES = ['AUTO_STOCK', 'FORCE_HIDDEN', 'PREORDER', 'MAINTENANCE'] as const
+
 const variantSchema = z.object({
   name: z.string().min(1),
   duration: z.string().min(1),
@@ -11,6 +13,7 @@ const variantSchema = z.object({
   warrantyText: z.string().default('KBH'),
   description: z.string().optional().nullable(),
   badge: z.string().optional().nullable(),
+  saleMode: z.enum(VALID_SALE_MODES).default('AUTO_STOCK'),
   available: z.boolean().default(true),
   sortOrder: z.number().default(0),
 })

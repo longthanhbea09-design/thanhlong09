@@ -47,6 +47,8 @@ model ProductPlan {
   warrantyText  String         @default("KBH")
   description   String?
   badge         String?
+  saleMode      String         @default("AUTO_STOCK")
+  // AUTO_STOCK | FORCE_HIDDEN | PREORDER | MAINTENANCE
   available     Boolean        @default(true)
   isActive      Boolean        @default(true)
   sortOrder     Int            @default(0)
@@ -93,7 +95,7 @@ model Order {
   emailSentAt     DateTime?
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @updatedAt
-  accountStock    AccountStock?
+  accountStocks   AccountStock[]
   plan            ProductPlan          @relation(fields: [planId], references: [id])
   product         Product              @relation(fields: [productId], references: [id])
   transactions    PaymentTransaction[]
@@ -133,7 +135,7 @@ model AccountStock {
   password  String
   extraInfo String      @default("")
   status    String      @default("available")
-  orderId   String?     @unique @db.ObjectId
+  orderId   String?     @db.ObjectId
   soldAt    DateTime?
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt

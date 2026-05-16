@@ -11,6 +11,7 @@ import {
   buildMbBankPaymentContent,
 } from '@/lib/payments/payment-settings'
 import { createMomoPayment } from '@/lib/payments/momo-service'
+import { getSaleStatus } from '@/lib/saleStatus'
 
 // 10 orders per hour per IP
 const CHECKOUT_LIMIT = 10
@@ -54,9 +55,28 @@ export async function POST(request: NextRequest) {
     if (!plan.product.isActive) {
       return NextResponse.json({ error: 'Sản phẩm này hiện không còn bán' }, { status: 400 })
     }
-    if (!plan.available) {
-      return NextResponse.json({ error: 'Gói này tạm thời chưa có sẵn, vui lòng chọn gói khác' }, { status: 400 })
+
+    // Server-side stock + saleMode validation
+    const stockCount = await prisma.accountStock.count({
+      where: { planId: plan.id, status: 'available' },
+    })
+    const saleStatus = getSaleStatus({
+      planSaleMode: plan.saleMode,
+      planAvailable: plan.available,
+      stockCount,
+    })
+
+    if (saleStatus === 'HIDDEN') {
+      return NextResponse.json({ error: 'Gói này không khả dụng' }, { status: 400 })
     }
+    if (saleStatus === 'MAINTENANCE') {
+      return NextResponse.json({ error: 'Gói này đang bảo trì, vui lòng thử lại sau' }, { status: 400 })
+    }
+    if (saleStatus === 'OUT_OF_STOCK') {
+      return NextResponse.json({ error: 'Gói này hiện đã hết hàng, vui lòng chọn gói khác' }, { status: 400 })
+    }
+
+    const isPreorder = saleStatus === 'PREORDER'
 
     // 2. Read admin-configured payment settings — server decides which method
     const settings = await getPaymentSettings()
@@ -120,6 +140,7 @@ export async function POST(request: NextRequest) {
         status: 'new',
         amount,
         paymentStatus: 'pending',
+        deliveryStatus: isPreorder ? 'waiting_stock' : 'waiting_payment',
         paymentProvider: method,
         paymentLinkId,
         paymentUrl,

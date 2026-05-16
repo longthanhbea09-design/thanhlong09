@@ -18,6 +18,8 @@ async function recomputePriceFrom(productId: string) {
   }
 }
 
+const VALID_SALE_MODES = ['AUTO_STOCK', 'FORCE_HIDDEN', 'PREORDER', 'MAINTENANCE'] as const
+
 const patchSchema = z.object({
   name: z.string().min(1).optional(),
   duration: z.string().min(1).optional(),
@@ -26,6 +28,7 @@ const patchSchema = z.object({
   warrantyText: z.string().optional(),
   description: z.string().optional().nullable(),
   badge: z.string().optional().nullable(),
+  saleMode: z.enum(VALID_SALE_MODES).optional(),
   available: z.boolean().optional(),
   isActive: z.boolean().optional(),
   sortOrder: z.number().optional(),

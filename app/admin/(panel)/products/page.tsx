@@ -17,9 +17,12 @@ interface AdminVariant {
   warrantyText: string
   description: string | null
   badge: string | null
+  saleMode: string
   available: boolean
   isActive: boolean
   sortOrder: number
+  stockCount?: number
+  saleStatus?: string
 }
 
 interface AdminProduct {
@@ -271,19 +274,26 @@ export default function ProductsPage() {
 
                       {/* Variant pills — desktop */}
                       <div className="hidden lg:flex flex-wrap gap-1.5">
-                        {product.plans.filter(p => p.isActive).map(v => (
-                          <span
-                            key={v.id}
-                            className={`px-2 py-0.5 rounded-md border text-[11px] ${
-                              v.available
-                                ? 'border-white/10 text-slate-300'
-                                : 'border-orange-500/20 text-orange-400/70'
-                            }`}
-                          >
-                            {v.name}: {formatPrice(v.price)}
-                            {!v.available && ' ✕'}
-                          </span>
-                        ))}
+                        {product.plans.filter(p => p.isActive).map(v => {
+                          const ss = v.saleStatus
+                          const pillColor =
+                            ss === 'IN_STOCK'
+                              ? 'border-white/10 text-slate-300'
+                              : ss === 'PREORDER'
+                              ? 'border-indigo-500/30 text-indigo-400/80'
+                              : ss === 'MAINTENANCE'
+                              ? 'border-amber-500/20 text-amber-400/70'
+                              : 'border-orange-500/20 text-orange-400/70'
+                          return (
+                            <span key={v.id} className={`px-2 py-0.5 rounded-md border text-[11px] ${pillColor}`}>
+                              {v.name}: {formatPrice(v.price)}
+                              {ss === 'IN_STOCK' && v.stockCount !== undefined && ` (${v.stockCount})`}
+                              {ss === 'OUT_OF_STOCK' && ' ✕'}
+                              {ss === 'PREORDER' && ' ↗'}
+                              {ss === 'MAINTENANCE' && ' ⏸'}
+                            </span>
+                          )
+                        })}
                       </div>
 
                       {/* Price + orders */}

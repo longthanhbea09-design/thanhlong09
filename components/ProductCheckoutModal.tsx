@@ -165,7 +165,8 @@ export default function ProductCheckoutModal({ product, settings, onClose }: Pro
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        className="absolute inset-0 modal-backdrop"
+        style={{ WebkitBackdropFilter: 'blur(24px)' }}
         onClick={onClose}
       />
 
@@ -280,10 +281,22 @@ export default function ProductCheckoutModal({ product, settings, onClose }: Pro
                         </p>
                         <span
                           className={`text-[10px] font-medium ${
-                            v.disabled ? 'text-orange-400' : 'text-emerald-400'
+                            v.saleStatus === 'OUT_OF_STOCK'
+                              ? 'text-orange-400'
+                              : v.saleStatus === 'MAINTENANCE'
+                              ? 'text-amber-400'
+                              : v.saleStatus === 'PREORDER'
+                              ? 'text-indigo-400'
+                              : 'text-emerald-400'
                           }`}
                         >
-                          {v.disabled ? '● Hết hàng' : '● Còn hàng'}
+                          {v.saleStatus === 'OUT_OF_STOCK'
+                            ? '● Hết hàng'
+                            : v.saleStatus === 'MAINTENANCE'
+                            ? '● Tạm đóng'
+                            : v.saleStatus === 'PREORDER'
+                            ? '● Đặt trước'
+                            : '● Còn hàng'}
                         </span>
                       </div>
                     </div>

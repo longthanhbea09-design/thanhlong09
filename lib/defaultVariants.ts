@@ -1,4 +1,4 @@
-import type { Product, ProductPlan } from '@/types'
+import type { Product } from '@/types'
 
 export interface ProductVariant {
   id: string
@@ -10,23 +10,28 @@ export interface ProductVariant {
   subLabel: string
   price: number
   disabled: boolean
+  saleStatus: string
   badge?: string
 }
 
 export function getProductVariants(product: Product): ProductVariant[] {
   return product.plans
-    .filter((p) => p.isActive)
+    .filter((p) => p.isActive && p.saleStatus !== 'HIDDEN')
     .sort((a, b) => a.sortOrder - b.sortOrder)
-    .map((p) => ({
-      id: p.id,
-      planId: p.id,
-      name: p.name,
-      duration: p.duration,
-      type: p.type,
-      warrantyText: p.warrantyText || 'KBH',
-      subLabel: p.description ?? '',
-      price: p.price,
-      disabled: !p.available,
-      badge: p.badge ?? undefined,
-    }))
+    .map((p) => {
+      const ss = p.saleStatus ?? (p.available ? 'IN_STOCK' : 'OUT_OF_STOCK')
+      return {
+        id: p.id,
+        planId: p.id,
+        name: p.name,
+        duration: p.duration,
+        type: p.type,
+        warrantyText: p.warrantyText || 'KBH',
+        subLabel: p.description ?? '',
+        price: p.price,
+        disabled: ss === 'OUT_OF_STOCK' || ss === 'MAINTENANCE',
+        saleStatus: ss,
+        badge: p.badge ?? undefined,
+      }
+    })
 }

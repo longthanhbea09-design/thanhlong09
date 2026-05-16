@@ -29,7 +29,7 @@ export async function autoDelivery(orderId: string): Promise<DeliveryOutcome> {
   try {
     const order = await prisma.order.findUnique({
       where: { id: orderId },
-      include: { product: true, plan: true, accountStock: true },
+      include: { product: true, plan: true, accountStocks: true },
     })
 
     if (!order) {
@@ -42,7 +42,7 @@ export async function autoDelivery(orderId: string): Promise<DeliveryOutcome> {
     }
 
     // Idempotency: already delivered
-    if (order.deliveryStatus === 'delivered' || order.accountStock) {
+    if (order.deliveryStatus === 'delivered' || order.accountStocks?.length > 0) {
       console.info(`${tag} → ALREADY_DELIVERED deliveryStatus=${order.deliveryStatus}`)
       return 'skip'
     }
@@ -81,9 +81,9 @@ export async function autoDelivery(orderId: string): Promise<DeliveryOutcome> {
       // Decrypt before building delivery content — password may be encrypted
       const deliveryContent = buildDeliveryContent(account)
 
-      // Mark account as sold — @unique orderId prevents double-assignment (race condition guard)
+      // Optimistic lock: update only if still 'available'; throws P2025 if another tx claimed it first
       await tx.accountStock.update({
-        where: { id: account.id },
+        where: { id: account.id, status: 'available' },
         data: { status: 'sold', orderId, soldAt: now },
       })
 

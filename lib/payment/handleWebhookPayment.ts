@@ -127,6 +127,20 @@ export async function processPaymentWebhook({
   }
 
   // ── 7. Auto-deliver ──────────────────────────────────────────────────────────
+  // For PREORDER plans, skip auto-delivery — stock will be assigned manually
+  const plan = await prisma.productPlan.findUnique({
+    where: { id: order.planId },
+    select: { saleMode: true },
+  })
+  if (plan?.saleMode === 'PREORDER') {
+    await prisma.order.update({
+      where: { id: order.id },
+      data: { deliveryStatus: 'waiting_stock' },
+    })
+    console.log(`${tag} → [PREORDER_SKIP_DELIVERY] Plan saleMode=PREORDER — manual delivery required`)
+    return { ok: true, message: 'Payment confirmed (preorder — awaiting stock)', status: 'PAID' }
+  }
+
   const paymentSettings = await getPaymentSettings()
 
   if (!paymentSettings.autoDeliverAfterPaid) {
