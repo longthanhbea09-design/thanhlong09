@@ -5,7 +5,6 @@ import Header from '@/components/Header'
 import Hero from '@/components/Hero'
 import ProductSection from '@/components/ProductSection'
 import HowToBuy from '@/components/HowToBuy'
-import OrderForm from '@/components/OrderForm'
 import WarrantySection from '@/components/WarrantySection'
 import ContactSection from '@/components/ContactSection'
 import Footer from '@/components/Footer'
@@ -36,7 +35,6 @@ export default function HomeClient() {
       <Hero />
       <ProductSection products={products} onBuyNow={setCheckoutProduct} />
       <HowToBuy />
-      <OrderForm products={products} selectedProduct={null} />
       <WarrantySection />
       <ContactSection settings={settings} />
       <Footer settings={settings} />

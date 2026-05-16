@@ -1,4 +1,4 @@
-import { MousePointer2, ClipboardList, CheckCircle2, ArrowRight } from 'lucide-react'
+import { MousePointer2, ClipboardList, Zap, ArrowRight } from 'lucide-react'
 import FadeIn from './FadeIn'
 
 
@@ -6,8 +6,8 @@ const steps = [
   {
     number: '01',
     icon: MousePointer2,
-    title: 'Chọn sản phẩm phù hợp',
-    desc: 'Duyệt qua danh sách sản phẩm, chọn gói dịch vụ phù hợp với nhu cầu của bạn. Bấm "Mua ngay" để bắt đầu.',
+    title: 'Chọn sản phẩm & gói',
+    desc: 'Duyệt danh sách sản phẩm, chọn gói phù hợp với nhu cầu. Bấm "Mua ngay" để bắt đầu.',
     color: 'text-cyan-400',
     bg: 'bg-cyan-500/10',
     border: 'border-cyan-500/20',
@@ -15,17 +15,17 @@ const steps = [
   {
     number: '02',
     icon: ClipboardList,
-    title: 'Điền thông tin liên hệ',
-    desc: 'Chỉ cần nhập họ tên và số điện thoại. Không cần tạo tài khoản, không cần mật khẩu. Đơn giản và nhanh chóng.',
+    title: 'Nhập thông tin & thanh toán',
+    desc: 'Điền họ tên, số điện thoại và email nhận tài khoản. Quét mã QR để thanh toán — chỉ mất vài giây.',
     color: 'text-emerald-400',
     bg: 'bg-emerald-500/10',
     border: 'border-emerald-500/20',
   },
   {
     number: '03',
-    icon: CheckCircle2,
-    title: 'Nhận hỗ trợ và kích hoạt',
-    desc: 'ThanhLongShop liên hệ trong vòng 5 phút, hướng dẫn thanh toán và kích hoạt dịch vụ cho bạn tận tay.',
+    icon: Zap,
+    title: 'Nhận tài khoản tự động',
+    desc: 'Hệ thống xác nhận thanh toán và giao tài khoản ngay lập tức — không cần chờ, không cần liên hệ.',
     color: 'text-purple-400',
     bg: 'bg-purple-500/10',
     border: 'border-purple-500/20',
@@ -38,9 +38,9 @@ export default function HowToBuy() {
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-emerald-950/10 to-transparent" />
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <FadeIn className="text-center mb-14">
-          <h2 className="section-title">Cách mua hàng đơn giản</h2>
+          <h2 className="section-title">Mua hàng chỉ 3 bước</h2>
           <p className="section-subtitle">
-            Chỉ 3 bước là xong — không cần tạo tài khoản, không cần nhớ mật khẩu
+            Thanh toán xong là nhận tài khoản ngay — không cần chờ, không cần tạo tài khoản
           </p>
         </FadeIn>
 
@@ -81,7 +81,7 @@ export default function HowToBuy() {
         {/* Note */}
         <div className="mt-10 text-center">
           <div className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-white/5 border border-white/10 text-slate-400 text-sm">
-            💡 Bạn có thể liên hệ Zalo bất cứ lúc nào để được hướng dẫn từng bước
+            💡 Cần hỗ trợ? Liên hệ Zalo bất cứ lúc nào — mình phản hồi nhanh
           </div>
         </div>
       </div>
