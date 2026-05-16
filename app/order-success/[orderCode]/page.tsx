@@ -21,6 +21,7 @@ interface DeliveryData {
   deliveredAt: string | null
   paidAt: string | null
   deliveryContent: string | null
+  renderedMessage: string | null
 }
 
 export default function OrderSuccessPage() {
@@ -71,8 +72,9 @@ export default function OrderSuccessPage() {
   }, [data, fetchDelivery])
 
   const copyContent = () => {
-    if (!data?.deliveryContent) return
-    navigator.clipboard.writeText(data.deliveryContent)
+    const text = data?.renderedMessage || data?.deliveryContent
+    if (!text) return
+    navigator.clipboard.writeText(text)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
@@ -205,7 +207,7 @@ export default function OrderSuccessPage() {
               </button>
             </div>
             <DeliveryContent
-              content={data.deliveryContent}
+              content={data.renderedMessage || data.deliveryContent}
               className="text-slate-200 text-sm whitespace-pre-wrap break-words bg-white/5 rounded-xl p-4 leading-relaxed font-mono"
             />
             <p className="text-slate-500 text-xs mt-3">

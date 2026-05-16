@@ -17,6 +17,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { checkRateLimit, getClientIp, rateLimitResponse } from '@/lib/rateLimit'
+import { DEFAULT_DELIVERY_TEMPLATE, renderDelivery } from '@/lib/delivery'
 
 export const dynamic = 'force-dynamic'
 
@@ -68,6 +69,25 @@ export async function GET(
       order.paymentStatus === 'paid' &&
       order.deliveryVisible === true
 
+    let renderedMessage: string | null = null
+    if (canShowDelivery && order.deliveryContent) {
+      const settings = await prisma.setting.findFirst({ where: { id: 'singleton' } })
+      const template = settings?.deliveryTemplate || DEFAULT_DELIVERY_TEMPLATE
+      renderedMessage = renderDelivery(template, {
+        orderCode: order.orderCode,
+        productName: `${order.product.icon} ${order.product.name}`,
+        variantName: order.plan.name,
+        amount: order.amount,
+        createdAt: order.createdAt,
+        paidAt: order.paidAt,
+        customerName: order.customerName,
+        phone: (order as { phone?: string }).phone ?? '',
+        deliveryContent: order.deliveryContent,
+        shopName: settings?.shopName || 'ThanhLongShop',
+        zaloPhone: settings?.zalo || '',
+      })
+    }
+
     return NextResponse.json({
       orderCode: order.orderCode,
       customerName: order.customerName,
@@ -78,8 +98,10 @@ export async function GET(
       deliveryStatus: order.deliveryStatus,
       deliveredAt: order.deliveredAt,
       paidAt: order.paidAt,
-      // deliveryContent only when fully confirmed and visible
+      // renderedMessage: full template rendered with order vars — shown on success page
+      // deliveryContent: raw account data — kept for fallback compatibility
       deliveryContent: canShowDelivery ? order.deliveryContent : null,
+      renderedMessage: renderedMessage,
     })
   } catch {
     return NextResponse.json({ error: 'Lỗi server' }, { status: 500 })
