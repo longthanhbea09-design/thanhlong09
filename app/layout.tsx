@@ -12,7 +12,9 @@ export const metadata: Metadata = {
       { url: '/icon.png', type: 'image/png', sizes: '512x512' },
     ],
     shortcut: '/favicon.ico',
-    apple: '/apple-icon.png',
+    apple: [
+      { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+    ],
   },
   openGraph: {
     title: 'ThanhLongShop - Dịch vụ số uy tín',
