@@ -129,7 +129,7 @@ function DeleteModal({
   const hasSold = accounts.some((a) => a.status === 'sold')
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       {/* Invisible click-away area */}
       <div className="absolute inset-0" onClick={!deleting ? onCancel : undefined} />
 
