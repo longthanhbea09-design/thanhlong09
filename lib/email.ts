@@ -33,6 +33,10 @@ function orderEmailHtml(vars: {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/\n/g, '<br>')
+    .replace(
+      /(https?:\/\/[^\s<]+)/g,
+      '<a href="$1" target="_blank" rel="noopener noreferrer" style="color:#06b6d4;text-decoration:underline">$1</a>'
+    )
 
   return `<!DOCTYPE html>
 <html lang="vi">

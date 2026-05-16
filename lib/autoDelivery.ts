@@ -13,7 +13,11 @@ function buildDeliveryContent(acc: {
   const password = decrypt(acc.password)
   const extraInfo = acc.extraInfo ? decrypt(acc.extraInfo) : ''
   const lines = [`Tài khoản: ${acc.username}`, `Mật khẩu: ${password}`]
-  if (extraInfo) lines.push(`Ghi chú: ${extraInfo}`)
+  if (extraInfo) {
+    // Normalize bare domain to full URL so plain-text channels (Telegram/Zalo) auto-link it
+    const normalizedExtra = extraInfo.replace(/(?<![:/\w])2fa\.live\b/gi, 'https://2fa.live')
+    lines.push(`Ghi chú: ${normalizedExtra}`)
+  }
   return lines.join('\n')
 }
 

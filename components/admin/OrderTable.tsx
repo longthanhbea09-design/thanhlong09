@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react'
 import { formatDate, formatPrice, ORDER_STATUS_MAP, CONTACT_METHOD_MAP } from '@/lib/utils'
 import { DEFAULT_DELIVERY_TEMPLATE, renderDelivery } from '@/lib/delivery'
 import StatusBadge from './StatusBadge'
+import DeliveryContent from '@/components/DeliveryContent'
 import { ChevronDown, Save, X, MessageSquare, Loader2, Eye, EyeOff, Copy, Check, ToggleLeft, ToggleRight, CheckCircle2, Mail, RefreshCw, BadgeCheck } from 'lucide-react'
 
 const PAYMENT_STATUS_MAP: Record<string, { label: string; className: string }> = {
@@ -469,9 +470,10 @@ export default function OrderTable({ orders, onRefresh }: OrderTableProps) {
                     <div>
                       {order.deliveryContent ? (
                         <div className="space-y-2">
-                          <pre className="text-slate-300 text-sm bg-white/3 rounded-xl px-3 py-2 whitespace-pre-wrap font-mono">
-                            {order.deliveryContent}
-                          </pre>
+                          <DeliveryContent
+                            content={order.deliveryContent}
+                            className="text-slate-300 text-sm bg-white/3 rounded-xl px-3 py-2 whitespace-pre-wrap font-mono"
+                          />
                           <div className="flex items-center gap-3">
                             <span className={`flex items-center gap-1 text-xs font-medium ${order.deliveryVisible ? 'text-emerald-400' : 'text-slate-500'}`}>
                               {order.deliveryVisible ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}

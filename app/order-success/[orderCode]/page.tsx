@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
 import Link from 'next/link'
+import DeliveryContent from '@/components/DeliveryContent'
 
 interface DeliveryData {
   orderCode: string
@@ -203,9 +204,10 @@ export default function OrderSuccessPage() {
                 {copied ? 'Đã copy' : 'Copy'}
               </button>
             </div>
-            <pre className="text-slate-200 text-sm whitespace-pre-wrap break-words bg-white/5 rounded-xl p-4 leading-relaxed font-mono">
-              {data.deliveryContent}
-            </pre>
+            <DeliveryContent
+              content={data.deliveryContent}
+              className="text-slate-200 text-sm whitespace-pre-wrap break-words bg-white/5 rounded-xl p-4 leading-relaxed font-mono"
+            />
             <p className="text-slate-500 text-xs mt-3">
               Lưu lại thông tin này. Bạn cũng có thể tra cứu lại tại{' '}
               <Link href="/orders/lookup" className="text-cyan-400 hover:underline">

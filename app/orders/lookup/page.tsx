@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Search, CheckCircle2, Clock, AlertCircle, Copy, Check, MessageCircle, Zap, ArrowLeft, Package } from 'lucide-react'
 import { formatPrice, formatDate, ORDER_STATUS_MAP } from '@/lib/utils'
 import Link from 'next/link'
+import DeliveryContent from '@/components/DeliveryContent'
 
 interface LookupOrder {
   orderCode: string
@@ -245,9 +246,10 @@ export default function OrderLookupPage() {
                     {copied ? 'Đã copy' : 'Copy'}
                   </button>
                 </div>
-                <pre className="text-slate-200 text-sm whitespace-pre-wrap break-words bg-white/5 rounded-xl p-4 leading-relaxed">
-                  {result.deliveryContent}
-                </pre>
+                <DeliveryContent
+                  content={result.deliveryContent}
+                  className="text-slate-200 text-sm whitespace-pre-wrap break-words bg-white/5 rounded-xl p-4 leading-relaxed"
+                />
               </div>
             )}
 
