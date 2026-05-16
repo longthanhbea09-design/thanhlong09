@@ -7,7 +7,6 @@ const NAV_ITEMS = [
   { id: 'home', label: 'Trang chủ' },
   { id: 'products', label: 'Sản phẩm' },
   { id: 'how-to-buy', label: 'Cách mua' },
-  { id: 'pricing', label: 'Bảng giá' },
   { id: 'warranty', label: 'Bảo hành' },
   { id: 'contact', label: 'Liên hệ' },
 ]
@@ -69,9 +68,9 @@ export default function Header() {
     <header className="fixed top-0 inset-x-0 z-50 flex flex-col items-center pointer-events-none">
       {/* Floating pill container */}
       <div className="pointer-events-auto w-[96%] max-w-6xl mt-3">
-        <div className="header-glass flex items-center justify-between gap-3 rounded-full border border-white/10 px-5 py-3 shadow-[0_8px_32px_rgba(0,0,0,0.55)]" style={{ WebkitBackdropFilter: 'blur(24px)' }}>
+        <div className="header-glass grid grid-cols-[1fr_auto_1fr] items-center gap-3 rounded-full px-5 py-3 shadow-lg" style={{ WebkitBackdropFilter: 'blur(10px)' }}>
 
-          {/* Logo */}
+          {/* Logo — col 1 (left) */}
           <a
             href="/"
             className="flex items-center gap-2 shrink-0"
@@ -85,10 +84,10 @@ export default function Header() {
             </div>
           </a>
 
-          {/* Desktop nav — pill track */}
+          {/* Desktop nav — col 2 (center), truly centered via grid */}
           <nav
             ref={navRef}
-            className="relative hidden lg:flex items-center"
+            className="relative hidden lg:flex items-center justify-center"
             aria-label="Navigation"
           >
             {/* Sliding background pill */}
@@ -114,8 +113,8 @@ export default function Header() {
             ))}
           </nav>
 
-          {/* Right actions */}
-          <div className="flex items-center gap-2 shrink-0">
+          {/* Right actions — col 3 (right), aligned to end */}
+          <div className="flex items-center gap-2 justify-end">
             {/* Tra cứu đơn — desktop */}
             <a
               href="/orders/lookup"
@@ -130,7 +129,7 @@ export default function Header() {
               href={`https://zalo.me/${process.env.NEXT_PUBLIC_ZALO || '0924555517'}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-400 hover:to-emerald-400 text-white font-semibold text-sm transition-all shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 active:scale-95"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-cyan-500/90 hover:bg-cyan-400 text-white font-semibold text-sm transition-all shadow-lg shadow-cyan-500/20 active:scale-95"
             >
               <Phone className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Gọi/Zalo</span>

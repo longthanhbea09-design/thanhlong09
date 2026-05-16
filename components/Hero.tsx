@@ -1,29 +1,49 @@
 'use client'
 
-import { ArrowRight, MessageCircle, Users, Clock, Star, Shield } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { ArrowRight, MessageCircle, Clock, Star, Shield } from 'lucide-react'
 
-const stats = [
-  { icon: Users, value: '1.000+', label: 'Khách hàng tin dùng' },
-  { icon: Clock, value: '5 phút', label: 'Xử lý đơn hàng' },
-  { icon: MessageCircle, value: '24/7', label: 'Hỗ trợ qua Zalo' },
-  { icon: Star, value: '98%', label: 'Khách hàng hài lòng' },
-]
+interface RecentOrder {
+  name: string
+  product: string
+  status: 'Hoàn thành' | 'Đang xử lý' | 'Mới'
+}
+
+const STATUS_COLOR: Record<string, string> = {
+  'Hoàn thành': 'text-emerald-400',
+  'Đang xử lý': 'text-cyan-400',
+  'Mới': 'text-blue-400',
+}
 
 export default function Hero() {
+  const [orders, setOrders] = useState<RecentOrder[]>([])
+  const [ordersLoaded, setOrdersLoaded] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/recent-orders')
+      .then((r) => r.json())
+      .then((data) => { if (Array.isArray(data)) setOrders(data) })
+      .catch(() => {})
+      .finally(() => setOrdersLoaded(true))
+  }, [])
+
   const scrollToProducts = () => {
     document.querySelector('#products')?.scrollIntoView({ behavior: 'smooth' })
   }
 
-
   return (
-    <section id="home" className="relative pt-24 pb-10 sm:pt-28 sm:pb-12 overflow-hidden scroll-mt-20">
+    <section
+      id="home"
+      className="relative overflow-hidden scroll-mt-20 pt-24 pb-16 sm:pt-28 lg:min-h-screen lg:flex lg:items-center"
+    >
       {/* Background effects */}
       <div className="absolute inset-0 hero-glow" />
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl animate-pulse-slow" />
       <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl animate-pulse-slow" style={{ animationDelay: '2s' }} />
 
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="relative w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
+
           {/* Left content */}
           <div className="space-y-8">
             {/* Badge */}
@@ -48,10 +68,7 @@ export default function Hero() {
 
             {/* CTA Buttons */}
             <div className="flex flex-wrap gap-4">
-              <button
-                onClick={scrollToProducts}
-                className="btn-primary text-base px-8 py-4"
-              >
+              <button onClick={scrollToProducts} className="btn-primary text-base px-8 py-4">
                 Xem sản phẩm
                 <ArrowRight className="w-5 h-5" />
               </button>
@@ -86,11 +103,13 @@ export default function Hero() {
           {/* Right: Dashboard card */}
           <div className="hidden lg:block">
             <div className="glass rounded-3xl p-6 space-y-4 animate-float">
-              {/* Header card */}
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <p className="text-slate-400 text-sm">Hệ thống đang hoạt động</p>
-                  <h3 className="text-white font-bold text-lg">ThanhLongShop Dashboard</h3>
+
+              {/* Mac-style window bar */}
+              <div className="flex items-center justify-between">
+                <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 shadow-sm">
+                  <span className="w-3 h-3 rounded-full bg-red-400/80" />
+                  <span className="w-3 h-3 rounded-full bg-yellow-400/80" />
+                  <span className="w-3 h-3 rounded-full bg-green-400/80" />
                 </div>
                 <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-500/30">
                   <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
@@ -98,36 +117,61 @@ export default function Hero() {
                 </div>
               </div>
 
+              {/* Title */}
+              <div>
+                <p className="text-slate-400 text-xs">Hệ thống đang hoạt động</p>
+                <h3 className="text-white font-bold text-base">ThanhLongShop Dashboard</h3>
+              </div>
+
               {/* Stats grid */}
               <div className="grid grid-cols-2 gap-3">
-                {stats.map((stat, i) => (
-                  <div
-                    key={i}
-                    className="bg-white/5 border border-white/10 rounded-2xl p-4 hover:border-cyan-400/30 transition-all duration-200"
-                  >
-                    <stat.icon className="w-6 h-6 text-cyan-400 mb-2" />
+                {[
+                  { value: '1.000+', label: 'Khách hàng tin dùng' },
+                  { value: '5 phút', label: 'Xử lý đơn hàng' },
+                  { value: '24/7', label: 'Hỗ trợ qua Zalo' },
+                  { value: '98%', label: 'Khách hàng hài lòng' },
+                ].map((stat, i) => (
+                  <div key={i} className="bg-white/5 border border-white/10 rounded-2xl p-4 hover:border-cyan-400/30 transition-all duration-200">
                     <p className="text-white font-bold text-xl">{stat.value}</p>
                     <p className="text-slate-400 text-xs mt-0.5">{stat.label}</p>
                   </div>
                 ))}
               </div>
 
-              {/* Recent order */}
+              {/* Recent orders */}
               <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-3">
-                <p className="text-slate-400 text-xs font-medium uppercase tracking-wide">Đơn hàng gần đây</p>
-                {[
-                  { name: 'Nguyễn Văn A', product: 'ChatGPT Plus', status: 'Hoàn thành', color: 'text-emerald-400' },
-                  { name: 'Trần Thị B', product: 'SuperGrok', status: 'Đang xử lý', color: 'text-cyan-400' },
-                  { name: 'Lê Văn C', product: 'Gemini Pro', status: 'Mới', color: 'text-blue-400' },
-                ].map((order, i) => (
-                  <div key={i} className="flex items-center justify-between">
-                    <div>
-                      <p className="text-white text-sm font-medium">{order.name}</p>
-                      <p className="text-slate-400 text-xs">{order.product}</p>
+                <p className="text-slate-400 text-xs font-medium uppercase tracking-wide">
+                  Đơn hàng gần đây
+                </p>
+
+                {!ordersLoaded ? (
+                  /* skeleton */
+                  [0, 1, 2].map((i) => (
+                    <div key={i} className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <div className="h-3 w-28 rounded bg-white/10 animate-pulse" />
+                        <div className="h-2.5 w-20 rounded bg-white/5 animate-pulse" />
+                      </div>
+                      <div className="h-3 w-16 rounded bg-white/10 animate-pulse" />
                     </div>
-                    <span className={`text-xs font-medium ${order.color}`}>{order.status}</span>
-                  </div>
-                ))}
+                  ))
+                ) : orders.length > 0 ? (
+                  orders.map((order, i) => (
+                    <div key={i} className="flex items-center justify-between">
+                      <div>
+                        <p className="text-white text-sm font-medium">{order.name}</p>
+                        <p className="text-slate-400 text-xs">{order.product}</p>
+                      </div>
+                      <span className={`text-xs font-medium ${STATUS_COLOR[order.status] ?? 'text-slate-400'}`}>
+                        {order.status}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-slate-500 text-xs text-center py-1">
+                    Đang cập nhật đơn hàng mới...
+                  </p>
+                )}
               </div>
 
               <button
