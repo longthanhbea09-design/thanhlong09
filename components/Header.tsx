@@ -69,7 +69,7 @@ export default function Header() {
     <header className="fixed top-0 inset-x-0 z-50 flex flex-col items-center pointer-events-none">
       {/* Floating pill container */}
       <div className="pointer-events-auto w-[96%] max-w-6xl mt-3">
-        <div className="flex items-center justify-between gap-3 rounded-full border border-white/10 bg-slate-950/55 px-5 py-3 shadow-[0_8px_32px_rgba(0,0,0,0.45)] backdrop-blur-xl">
+        <div className="header-glass flex items-center justify-between gap-3 rounded-full border border-white/10 px-5 py-3 shadow-[0_8px_32px_rgba(0,0,0,0.55)]" style={{ WebkitBackdropFilter: 'blur(24px)' }}>
 
           {/* Logo */}
           <a

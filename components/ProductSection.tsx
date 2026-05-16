@@ -52,7 +52,7 @@ export default function ProductSection({ products, onBuyNow }: ProductSectionPro
   }, [products, activeCategory, search])
 
   return (
-    <section id="products" className="py-20 relative scroll-mt-20">
+    <section id="products" className="py-10 sm:py-12 relative scroll-mt-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section header */}
         <FadeIn className="text-center mb-12">

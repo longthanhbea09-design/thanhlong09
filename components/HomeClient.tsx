@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import Header from '@/components/Header'
 import Hero from '@/components/Hero'
-import Stats from '@/components/Stats'
 import ProductSection from '@/components/ProductSection'
 import HowToBuy from '@/components/HowToBuy'
 import PricingSection from '@/components/PricingSection'
@@ -36,7 +35,6 @@ export default function HomeClient() {
     <div className="min-h-screen bg-[#050816]">
       <Header />
       <Hero />
-      <Stats />
       <ProductSection products={products} onBuyNow={setCheckoutProduct} />
       <HowToBuy />
       <PricingSection />

@@ -16,13 +16,13 @@ export default function Hero() {
 
 
   return (
-    <section id="home" className="relative min-h-screen flex items-center pt-20 overflow-hidden scroll-mt-20">
+    <section id="home" className="relative pt-24 pb-10 sm:pt-28 sm:pb-12 overflow-hidden scroll-mt-20">
       {/* Background effects */}
       <div className="absolute inset-0 hero-glow" />
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl animate-pulse-slow" />
       <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl animate-pulse-slow" style={{ animationDelay: '2s' }} />
 
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           {/* Left content */}
           <div className="space-y-8">
