@@ -106,11 +106,10 @@ export default function StockPage() {
   }, [])
 
   const fetchAccounts = useCallback(async () => {
-    if (!filterProduct) { setAccounts([]); setTotal(0); return }
     setLoadingList(true)
     try {
       const params = new URLSearchParams({
-        productId: filterProduct,
+        ...(filterProduct ? { productId: filterProduct } : {}),
         ...(filterPlan ? { planId: filterPlan } : {}),
         ...(filterStatus ? { status: filterStatus } : {}),
         page: String(page),
@@ -199,8 +198,8 @@ export default function StockPage() {
             {[
               { label: 'Tổng còn hàng', value: totalAvailable, color: 'text-emerald-400' },
               { label: 'Đã bán', value: totalSold, color: 'text-slate-300' },
-              { label: 'Sản phẩm có kho', value: stats.length, color: 'text-cyan-400' },
-              { label: 'Gói có kho', value: stats.flatMap((p) => p.plans).length, color: 'text-purple-400' },
+              { label: 'Sản phẩm có kho', value: stats.filter((p) => p.totalAvailable > 0).length, color: 'text-cyan-400' },
+              { label: 'Gói có kho', value: stats.flatMap((p) => p.plans).filter((pl) => pl.available > 0).length, color: 'text-purple-400' },
             ].map((s) => (
               <div key={s.label} className="glass rounded-xl border border-white/10 p-4">
                 <p className="text-slate-500 text-xs mb-1">{s.label}</p>
@@ -395,12 +394,7 @@ export default function StockPage() {
               </div>
             </div>
 
-            {!filterProduct ? (
-              <div className="flex flex-col items-center justify-center py-16 text-slate-500">
-                <Package className="w-10 h-10 mb-3 opacity-30" />
-                <p className="text-sm">Chọn sản phẩm để xem danh sách tài khoản</p>
-              </div>
-            ) : loadingList ? (
+            {loadingList ? (
               <div className="flex items-center justify-center py-16">
                 <div className="w-7 h-7 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
               </div>

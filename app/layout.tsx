@@ -6,6 +6,10 @@ export const metadata: Metadata = {
   description:
     'ThanhLongShop cung cấp các gói dịch vụ số như CapCut Pro, ChatGPT Plus, Canva Pro, YouTube Premium và nhiều dịch vụ khác. Giao nhanh, hỗ trợ tận tâm, bảo hành rõ ràng.',
   keywords: 'mua ChatGPT Plus, CapCut Pro, Canva Pro, YouTube Premium, Netflix, dịch vụ số, gói dịch vụ số',
+  icons: {
+    icon: '/icon.svg',
+    shortcut: '/icon.svg',
+  },
   openGraph: {
     title: 'ThanhLongShop - Dịch vụ số uy tín',
     description: 'Dịch vụ số uy tín, giao nhanh, hỗ trợ tận tâm',
