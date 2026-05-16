@@ -129,15 +129,12 @@ function DeleteModal({
   const hasSold = accounts.some((a) => a.status === 'sold')
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Overlay */}
-      <div
-        className="absolute inset-0 bg-black/65 backdrop-blur-sm"
-        onClick={!deleting ? onCancel : undefined}
-      />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md">
+      {/* Invisible click-away area */}
+      <div className="absolute inset-0" onClick={!deleting ? onCancel : undefined} />
 
       {/* Card */}
-      <div className="relative w-full max-w-md glass rounded-2xl border border-white/10 shadow-2xl overflow-hidden">
+      <div className="relative w-full max-w-md rounded-2xl border border-slate-700/60 bg-[#0f172a] overflow-hidden" style={{ boxShadow: '0 24px 80px rgba(0,0,0,0.55)' }}>
 
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-5 pb-4">
