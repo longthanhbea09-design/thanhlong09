@@ -29,7 +29,7 @@ export function getProductVariants(product: Product): ProductVariant[] {
         warrantyText: p.warrantyText || 'KBH',
         subLabel: p.description ?? '',
         price: p.price,
-        disabled: ss === 'OUT_OF_STOCK' || ss === 'MAINTENANCE',
+        disabled: ss === 'OUT_OF_STOCK' || ss === 'MAINTENANCE' || p.price <= 0,
         saleStatus: ss,
         badge: p.badge ?? undefined,
       }

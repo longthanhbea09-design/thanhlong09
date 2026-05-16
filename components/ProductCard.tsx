@@ -12,17 +12,16 @@ interface ProductCardProps {
 
 export default function ProductCard({ product, onBuyNow }: ProductCardProps) {
   const visiblePlans = product.plans.filter((p) => p.isActive && p.saleStatus !== 'HIDDEN')
+  // A plan is only buyable if: right saleStatus AND price > 0
   const buyablePlans = visiblePlans.filter(
-    (p) => p.saleStatus === 'IN_STOCK' || p.saleStatus === 'PREORDER'
+    (p) => (p.saleStatus === 'IN_STOCK' || p.saleStatus === 'PREORDER') && p.price > 0
   )
-  const isOutOfStock = visiblePlans.length > 0 && buyablePlans.length === 0
+  const canBuy = buyablePlans.length > 0
+  // No active plans at all (deleted or all hidden)
+  const noActivePlans = product.plans.filter((p) => p.isActive).length === 0
 
-  const minPrice =
-    buyablePlans.length > 0
-      ? Math.min(...buyablePlans.map((p) => p.price))
-      : visiblePlans.length > 0
-      ? Math.min(...visiblePlans.map((p) => p.price))
-      : product.priceFrom
+  // Only show a real price when there are actually buyable plans
+  const minPrice = canBuy ? Math.min(...buyablePlans.map((p) => p.price)) : null
 
   return (
     <div className="glass rounded-2xl p-6 card-hover border border-white/10 hover:border-cyan-400/30 flex flex-col gap-4">
@@ -43,12 +42,17 @@ export default function ProductCard({ product, onBuyNow }: ProductCardProps) {
           </div>
         </div>
         <div className="flex flex-col items-end gap-1.5 shrink-0">
-          {product.badge && (
+          {product.badge && canBuy && (
             <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-cyan-500/20 to-emerald-500/20 border border-cyan-500/30 text-cyan-300">
               {product.badge}
             </span>
           )}
-          {isOutOfStock && (
+          {noActivePlans && (
+            <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-500/10 border border-slate-500/30 text-slate-400">
+              Chưa có gói
+            </span>
+          )}
+          {!noActivePlans && !canBuy && (
             <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-500/10 border border-orange-500/30 text-orange-400">
               Hết hàng
             </span>
@@ -68,26 +72,26 @@ export default function ProductCard({ product, onBuyNow }: ProductCardProps) {
 
       {/* Price */}
       <div className="flex items-baseline gap-1">
-        <span className="text-slate-400 text-sm">Từ</span>
-        <span className={`text-2xl font-extrabold ${isOutOfStock ? 'text-slate-500' : 'gradient-text'}`}>
-          {formatPrice(minPrice)}
+        {minPrice !== null && <span className="text-slate-400 text-sm">Từ</span>}
+        <span className={`text-2xl font-extrabold ${canBuy ? 'gradient-text' : 'text-slate-500'}`}>
+          {minPrice !== null ? formatPrice(minPrice) : '--'}
         </span>
-        <span className="text-slate-400 text-sm">/ tháng</span>
+        {minPrice !== null && <span className="text-slate-400 text-sm">/ tháng</span>}
       </div>
 
       {/* Buttons */}
       <div className="flex gap-3 pt-1">
         <button
-          onClick={() => !isOutOfStock && onBuyNow(product)}
-          disabled={isOutOfStock}
+          onClick={() => canBuy && onBuyNow(product)}
+          disabled={!canBuy}
           className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-all duration-200 active:scale-95 ${
-            isOutOfStock
+            !canBuy
               ? 'bg-white/5 border border-white/10 text-slate-500 cursor-not-allowed active:scale-100'
               : 'bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-400 hover:to-emerald-400 text-white shadow-lg shadow-cyan-500/20'
           }`}
         >
           <ShoppingCart className="w-4 h-4" />
-          {isOutOfStock ? 'Hết hàng' : 'Mua ngay'}
+          {noActivePlans ? 'Chưa có gói' : !canBuy ? 'Hết hàng' : 'Mua ngay'}
         </button>
         <button
           onClick={() => onBuyNow(product)}

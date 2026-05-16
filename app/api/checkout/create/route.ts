@@ -75,6 +75,9 @@ export async function POST(request: NextRequest) {
     if (saleStatus === 'OUT_OF_STOCK') {
       return NextResponse.json({ error: 'Gói này hiện đã hết hàng, vui lòng chọn gói khác' }, { status: 400 })
     }
+    if (plan.price <= 0) {
+      return NextResponse.json({ error: 'Gói này chưa được thiết lập giá, không thể đặt hàng' }, { status: 400 })
+    }
 
     const isPreorder = saleStatus === 'PREORDER'
 

@@ -277,6 +277,19 @@ export default function VariantEditor({ productId, initialVariants, onVariantsCh
         </div>
       </div>
 
+      {/* No valid plan warning */}
+      {activeVariants.every(v => {
+        const c = current(v)
+        return c.price <= 0 || c.saleMode === 'FORCE_HIDDEN' || c.saleMode === 'MAINTENANCE'
+      }) && (
+        <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/30 rounded-lg p-3">
+          <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+          <p className="text-amber-300 text-xs leading-relaxed">
+            Sản phẩm này chưa có gói bán hợp lệ — khách sẽ không thể mua. Hãy thêm ít nhất một gói có giá {'>'} 0 và chế độ bán hợp lệ (AUTO_STOCK / PREORDER).
+          </p>
+        </div>
+      )}
+
       {/* Variant accordion */}
       <div className="space-y-2">
         {activeVariants.map(v => {
